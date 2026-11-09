@@ -519,7 +519,19 @@ Check your Browserslist config to be sure that your targets are set up correctly
             <label><input type="radio" name="catEmoji" value="🛍️" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">🛍️</span></label>
             <label><input type="radio" name="catEmoji" value="✈️" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">✈️</span></label>
             <label><input type="radio" name="catEmoji" value="🐾" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">🐾</span></label>
+            <label><input type="radio" name="catEmoji" value="📅" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">📅</span></label>
+            <label><input type="radio" name="catEmoji" value="✅" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">✅</span></label>
+            <label><input type="radio" name="catEmoji" value="💪" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">💪</span></label>
+            <label><input type="radio" name="catEmoji" value="📈" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">📈</span></label>
+            <label><input type="radio" name="catEmoji" value="❤️" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">❤️</span></label>
+            <label><input type="radio" name="catEmoji" value="🎮" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">🎮</span></label>
+            <label><input type="radio" name="catEmoji" value="💰" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">💰</span></label>
+            <label><input type="radio" name="catEmoji" value="🏠" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">🏠</span></label>
+            <label><input type="radio" name="catEmoji" value="🍔" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">🍔</span></label>
+            <label><input type="radio" name="catEmoji" value="☕" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">☕</span></label>
           </div>
+          <input type="text" id="newCategoryEmojiCustom" placeholder="직접 입력도 가능해요 (예: 🎮)" maxlength="10" class="mt-2 w-full px-4 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-sm font-medium">
+          <p class="text-[10px] text-gray-400 mt-1">직접 입력하면 위에서 고른 아이콘보다 먼저 적용돼요.</p>
         </div>
 
         <div>
@@ -1521,7 +1533,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
       e.preventDefault();
       const name = document.getElementById('newCategoryName').value.trim();
       const emojiRadio = document.querySelector('input[name="catEmoji"]:checked');
-      const emoji = emojiRadio ? emojiRadio.value : '📌';
+      const customEl = document.getElementById('newCategoryEmojiCustom');
+      const customEmoji = customEl ? dlFirstEmoji(customEl.value) : '';
+      const emoji = customEmoji || (emojiRadio ? emojiRadio.value : '📌');
 
       if (!name) return;
 
@@ -1535,6 +1549,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       categories.push(newCat);
       persistData();
       document.getElementById('newCategoryName').value = '';
+      if (customEl) customEl.value = '';
       closeCategoryModal();
       renderCategoryPills();
       showToast(`'${name}' 목록이 추가되었습니다!`, emoji);
@@ -5215,7 +5230,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.50', code: 60 };
+    window.DL_VERSION = { name: '2.9.51', code: 61 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -5504,6 +5519,33 @@ Check your Browserslist config to be sure that your targets are set up correctly
       } catch (e) {}
       return r;
     };
+  
+    // 목록 아이콘 직접 입력 (2.9.51): 입력값의 첫 글자무리(이모지 1개)만 추출
+    function dlFirstEmoji(str) {
+      str = (str || '').trim();
+      if (!str) return '';
+      try {
+        const seg = new Intl.Segmenter('ko', { granularity: 'grapheme' });
+        for (const s of seg.segment(str)) return s.segment;
+      } catch (e) {}
+      const cps = Array.from(str);
+      let out = cps[0] || '', i = 1;
+      while (i < cps.length && (cps[i] === '\uFE0F' || cps[i] === '\u200D')) {
+        out += cps[i];
+        if (cps[i] === '\u200D' && i + 1 < cps.length) { out += cps[i + 1]; i += 2; } else i++;
+      }
+      return out;
+    }
+    (function () {
+      const custom = document.getElementById('newCategoryEmojiCustom');
+      if (!custom) return;
+      const radios = document.querySelectorAll('input[name="catEmoji"]');
+      custom.addEventListener('input', () => {
+        if (custom.value.trim()) { radios.forEach(r => { r.checked = false; }); }
+        else if (!document.querySelector('input[name="catEmoji"]:checked') && radios.length) { radios[0].checked = true; }
+      });
+      radios.forEach(r => r.addEventListener('change', () => { custom.value = ''; }));
+    })();
   </script>
 </body>
 </html>
