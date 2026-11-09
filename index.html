@@ -565,6 +565,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
           <input type="text" id="regId" placeholder="아이디 (3~20자, 공백 없이)" autocomplete="username" class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-medium">
           <input type="password" id="regPw" placeholder="비밀번호 (4자 이상)" autocomplete="new-password" class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-medium">
           <input type="password" id="regPw2" placeholder="비밀번호 확인" autocomplete="new-password" class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-medium">
+          <input type="text" id="regHint" placeholder="비밀번호 힌트 (까먹었을 때 개발자가 도와줄 수 있어요)" class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-medium">
           <div class="flex gap-2">
             <input type="text" id="regEmoji" placeholder="💙" maxlength="2" class="w-16 text-center px-2 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm">
             <input type="text" id="regName" placeholder="닉네임" class="flex-1 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-medium">
@@ -585,6 +586,32 @@ Check your Browserslist config to be sure that your targets are set up correctly
 
 
   <button id="todayPill" onclick="goToToday()" style="display:none" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-40 px-4 py-2 rounded-full bg-gray-900 text-white text-xs font-bold shadow-lg active:scale-95 transition">📍 오늘로 이동</button>
+
+
+  <!-- 건의함 모달 (2.9.39) -->
+  <div id="modalSuggest" class="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="absolute inset-0" onclick="closeSuggest()"></div>
+    <div id="modalSuggestContent" class="bg-white w-full max-w-md rounded-t-[2rem] p-6 pb-10 transform translate-y-full transition-transform duration-300 ease-out relative max-h-[88vh] overflow-y-auto shadow-2xl">
+      <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="suggestTitle" class="font-bold text-gray-800 text-base">📮 문의하기</h3>
+        <button onclick="closeSuggest()" class="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:text-gray-600 text-xs">✕</button>
+      </div>
+      <div id="suggestFormWrap" class="space-y-2.5 mb-5">
+        <input type="text" id="sugTitle" placeholder="제목" class="w-full px-3.5 py-2.5 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400">
+        <textarea id="sugBody" rows="4" placeholder="어떤 점이 불편했나요? 바라는 점을 적어주세요." class="w-full px-3.5 py-2.5 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 resize-none"></textarea>
+        <div class="flex items-center gap-2">
+          <label class="px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-bold cursor-pointer active:scale-95 transition">📷 사진 첨부<input type="file" id="sugPhotoInput" accept="image/*" class="hidden" onchange="dlSugPhotoPick(event)"></label>
+          <span id="sugPhotoName" class="text-[11px] text-gray-400 truncate"></span>
+          <button type="button" id="sugPhotoClear" onclick="dlSugPhotoReset()" class="hidden text-[11px] text-rose-500 font-bold">지우기</button>
+        </div>
+        <img id="sugPhotoPreview" class="hidden w-full rounded-2xl border border-gray-100" alt="">
+        <button type="button" id="sugSubmitBtn" onclick="dlSugSubmit()" class="w-full py-3 rounded-2xl bg-indigo-600 text-white text-sm font-bold active:scale-[0.98] transition">문의 등록하기</button>
+      </div>
+      <p class="text-[11px] font-bold text-gray-400 mb-2">지난 문의</p>
+      <div id="sugList" class="space-y-2.5"></div>
+    </div>
+  </div>
 
   <!-- 알림 모달 (2.9.36) -->
   <div id="modalNotifs" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
@@ -620,6 +647,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       <p class="text-xs text-gray-500 mb-4">이름과 이모지는 각자 자기 폰에서만 바꿀 수 있어요. 동기화되면 서로에게 그대로 보여요.</p>
       
       <div id="profAccountBox" class="mb-4"></div>
+      <div id="suggestEntry" class="mb-4"></div>
+      <div id="myHintBox" class="mb-4"></div>
       <form onsubmit="handleSaveProfile(event)" class="space-y-4">
         <!-- 나 -->
         <div class="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 w-full overflow-hidden">
@@ -2815,7 +2844,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
        - 공유 탭이면 일정 탭으로 돌아가고 true
        - 홈(일정 탭, 모달 없음)이면 false -> 셸이 종료 확인을 띄움
     ---------------------------------------------------- */
-    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo', 'modalTimePicker', 'modalBucket', 'modalMoney', 'modalAccounts', 'modalNotifs'];
+    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo', 'modalTimePicker', 'modalBucket', 'modalMoney', 'modalAccounts', 'modalNotifs', 'modalSuggest'];
     const dlModalStack = [];
     function dlModalIsOpen(el) { return !!el && !el.classList.contains('pointer-events-none'); }
     (function trackModals() {
@@ -3941,6 +3970,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
           '<div class="p-3 bg-gray-50 rounded-2xl border border-gray-100">' +
           '<p class="text-xs font-bold text-gray-800">' + (a.emoji || '🙂') + ' ' + escapeHtml(a.name || '') + ' <span class="text-gray-400 font-medium">(' + escapeHtml(a.id) + ')</span></p>' +
           '<p class="text-[10px] text-gray-400 mt-0.5">가입 ' + dlAcctDate(a.createdAt) + ' · 비밀번호 ' + (a.pwLen ? a.pwLen + '자리' : '—') + ' · 해시 ●●●●●●</p>' +
+          '<p class="text-[10px] text-gray-500 mt-0.5">💡 힌트: ' + escapeHtml(a.hint || '없음') + '</p>' +
           '</div>').join('');
       } catch (e) {
         list.innerHTML = '<p class="text-xs text-rose-500 text-center py-4">서버에 연결할 수 없어요.</p>';
@@ -4151,22 +4181,24 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const pw2 = document.getElementById('regPw2').value;
       const name = document.getElementById('regName').value.trim();
       const emoji = document.getElementById('regEmoji').value.trim() || '🙂';
+      const hint = document.getElementById('regHint').value.trim();
       if (!/^[^\s]{3,20}$/.test(id)) { dlAuthMsg('regMsg', '아이디는 공백 없이 3~20자로 해주세요.', false); return false; }
       if (pw.length < 4) { dlAuthMsg('regMsg', '비밀번호는 4자 이상으로 해주세요.', false); return false; }
       if (pw !== pw2) { dlAuthMsg('regMsg', '비밀번호 확인이 서로 달라요.', false); return false; }
       if (!name) { dlAuthMsg('regMsg', '닉네임을 입력해주세요.', false); return false; }
+      if (!hint) { dlAuthMsg('regMsg', '비밀번호 힌트를 입력해주세요. 까먹었을 때 필요해요.', false); return false; }
       const btn = document.getElementById('regBtn');
       btn.disabled = true; btn.textContent = '가입 중…';
       try {
         const reg = await dlRegistryFetch();
         if (reg.accounts.some(a => a.id === id)) { dlAuthMsg('regMsg', '이미 있는 아이디예요. 다른 아이디를 써주세요.', false); return false; }
-        const acct = { id: id, pwHash: await dlPwHash(id, pw), pwLen: pw.length, name: name, emoji: emoji, createdAt: Date.now() };
+        const acct = { id: id, pwHash: await dlPwHash(id, pw), pwLen: pw.length, name: name, emoji: emoji, hint: hint, createdAt: Date.now() };
         reg.accounts.push(acct);
         await dlRegistryPublish(reg);
         const sess = { id: id, name: name, emoji: emoji };
         dlSessionStore(sess, document.getElementById('regSaveId').checked, document.getElementById('regAuto').checked);
         dlEnterApp(sess);
-        showToast('가입 완료! 프로필에서 내 자리를 연결해주세요.', '🎉');
+        showToast('가입 완료! 환영해요.', '🎉');
       } catch (e) {
         dlAuthMsg('regMsg', '서버에 연결할 수 없어요. 네트워크를 확인해주세요.', false);
       } finally {
@@ -4701,6 +4733,236 @@ Check your Browserslist config to be sure that your targets are set up correctly
       } catch (e) {}
       const r = _origToday55.apply(this, arguments);
       dlUpdateTodayPill();
+      return r;
+    };
+  
+    /* ----------------------------------------------------
+       57. 건의함 (2.9.39)
+       - 전용 채널(고정 시드)에 암호화해 보관 — 커플 동기화 데이터와 분리
+       - 개발자(dlIsAdmin): 전체 열람 + 글쓰기 폼 숨김 / 일반: 본인 글만
+    ---------------------------------------------------- */
+    const DL_SUG_SEED = 'duolog-suggest-v1';
+    let _dlSugKey = null;
+    let _dlSugTopic = null;
+    let dlSugPosts = null;
+    let dlSugPhoto = null;
+    async function dlSugKey() {
+      if (_dlSugKey) return _dlSugKey;
+      _dlSugKey = await deriveSyncKey(DL_SUG_SEED);
+      return _dlSugKey;
+    }
+    async function dlSugTopic() {
+      if (_dlSugTopic) return _dlSugTopic;
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(DL_SUG_SEED));
+      _dlSugTopic = 'duolog/v1/' + Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 40);
+      return _dlSugTopic;
+    }
+    async function dlSugFetch() {
+      const key = await dlSugKey();
+      const topic = await dlSugTopic();
+      const clients = dlAcctClients();
+      try {
+        const payload = await new Promise(resolve => {
+          let done = false;
+          const finish = v => { if (!done) { done = true; resolve(v); } };
+          let pending = clients.length;
+          clients.forEach(c => {
+            const bail = setTimeout(() => { if (--pending <= 0) finish(null); }, 3500);
+            c.on('connect', () => c.subscribe(topic));
+            c.on('message', async (t, msg) => {
+              clearTimeout(bail);
+              try { finish(await dlAcctDecrypt(key, new TextDecoder().decode(msg))); } catch (e) { finish(null); }
+            });
+            c.on('error', () => { clearTimeout(bail); if (--pending <= 0) finish(null); });
+          });
+          setTimeout(() => finish(null), 9000);
+        });
+        if (!payload) return { posts: [] };
+        const data = JSON.parse(payload);
+        if (!data || !Array.isArray(data.posts)) return { posts: [] };
+        return data;
+      } finally {
+        clients.forEach(c => { try { c.end(true); } catch (e) {} });
+      }
+    }
+    async function dlSugPublish(data) {
+      const key = await dlSugKey();
+      const topic = await dlSugTopic();
+      const payload = await dlAcctEncrypt(key, JSON.stringify(data));
+      const clients = dlAcctClients();
+      try {
+        await Promise.all(clients.map(c => new Promise(resolve => {
+          const bail = setTimeout(resolve, 5000);
+          c.on('connect', () => {
+            c.publish(topic, payload, { retain: true, qos: 1 }, () => { clearTimeout(bail); resolve(); });
+          });
+          c.on('error', () => { clearTimeout(bail); resolve(); });
+        })));
+      } finally {
+        clients.forEach(c => { try { c.end(true); } catch (e) {} });
+      }
+    }
+    function dlRenderSuggestEntry() {
+      const box = document.getElementById('suggestEntry');
+      if (!box) return;
+      if (!dlSession) { box.innerHTML = ''; return; }
+      box.innerHTML = '<button type="button" onclick="openSuggest()" class="w-full py-3 rounded-2xl bg-white border border-gray-200 text-sm font-bold text-gray-700 active:scale-[0.98] transition">' + (dlIsAdmin() ? '📬 건의함 보기' : '📮 문의하기') + '</button>';
+    }
+    const _origRenderAcctBox57 = dlRenderAccountBox;
+    dlRenderAccountBox = function () {
+      const r = _origRenderAcctBox57.apply(this, arguments);
+      try { dlRenderSuggestEntry(); } catch (e) {}
+      return r;
+    };
+    function dlSugRenderList() {
+      const box = document.getElementById('sugList');
+      if (!box) return;
+      const admin = dlIsAdmin();
+      const posts = (dlSugPosts || []).filter(p => admin || (dlSession && p.authorId === dlSession.id));
+      if (!posts.length) {
+        box.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">' + (admin ? '아직 접수된 문의가 없어요.' : '아직 남긴 문의가 없어요.') + '</p>';
+        return;
+      }
+      box.innerHTML = posts.map(p => {
+        const canDel = admin || (dlSession && p.authorId === dlSession.id);
+        return '<div class="p-3.5 bg-gray-50 rounded-2xl border border-gray-100">' +
+          '<div class="flex items-start justify-between gap-2"><p class="text-sm font-bold text-gray-800 break-words">' + escapeHtml(p.title) + '</p>' +
+          (canDel ? '<button onclick="dlSugDelete(\'' + p.id + '\')" class="text-gray-300 hover:text-rose-500 text-xs flex-shrink-0">✕</button>' : '') + '</div>' +
+          '<p class="text-[10px] text-gray-400 mt-0.5">' + (p.authorEmoji || '🙂') + ' ' + escapeHtml(p.authorName || '') + ' · ' + (typeof commentTimeText === 'function' ? commentTimeText(p.ts) : '') + '</p>' +
+          '<p class="text-xs text-gray-600 break-words mt-1.5 whitespace-pre-wrap">' + escapeHtml(p.body) + '</p>' +
+          (p.photo ? '<img src="' + p.photo + '" class="w-full rounded-xl border border-gray-100 mt-2" alt="">' : '') + '</div>';
+      }).join('');
+    }
+    async function openSuggest() {
+      const pm = document.getElementById('modalProfile');
+      if (pm) pm.classList.add('opacity-0', 'pointer-events-none');
+      const modal = document.getElementById('modalSuggest');
+      const content = document.getElementById('modalSuggestContent');
+      const admin = dlIsAdmin();
+      document.getElementById('suggestTitle').innerText = admin ? '📬 건의함' : '📮 문의하기';
+      document.getElementById('suggestFormWrap').style.display = admin ? 'none' : '';
+      document.getElementById('sugList').innerHTML = '<p class="text-xs text-gray-400 text-center py-6">불러오는 중…</p>';
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      setTimeout(() => { content.classList.remove('translate-y-full'); }, 10);
+      try {
+        const data = await dlSugFetch();
+        dlSugPosts = data.posts;
+      } catch (e) { dlSugPosts = dlSugPosts || []; }
+      dlSugRenderList();
+    }
+    function closeSuggest() {
+      const modal = document.getElementById('modalSuggest');
+      const content = document.getElementById('modalSuggestContent');
+      content.classList.add('translate-y-full');
+      setTimeout(() => { modal.classList.add('opacity-0', 'pointer-events-none'); }, 150);
+    }
+    function dlSugPhotoPick(ev) {
+      const file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const max = 720;
+          const scale = Math.min(1, max / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.width * scale));
+          c.height = Math.max(1, Math.round(img.height * scale));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          dlSugPhoto = c.toDataURL('image/jpeg', 0.72);
+          const prev = document.getElementById('sugPhotoPreview');
+          prev.src = dlSugPhoto; prev.classList.remove('hidden');
+          document.getElementById('sugPhotoName').innerText = file.name || '사진 첨부됨';
+          document.getElementById('sugPhotoClear').classList.remove('hidden');
+        } catch (e) { showToast('사진을 처리하지 못했어요', '⚠️'); }
+        URL.revokeObjectURL(url);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); showToast('사진을 읽지 못했어요', '⚠️'); };
+      img.src = url;
+    }
+    function dlSugPhotoReset() {
+      dlSugPhoto = null;
+      const prev = document.getElementById('sugPhotoPreview');
+      prev.src = ''; prev.classList.add('hidden');
+      document.getElementById('sugPhotoName').innerText = '';
+      document.getElementById('sugPhotoClear').classList.add('hidden');
+      const inp = document.getElementById('sugPhotoInput');
+      if (inp) inp.value = '';
+    }
+    async function dlSugSubmit() {
+      const title = document.getElementById('sugTitle').value.trim();
+      const body = document.getElementById('sugBody').value.trim();
+      if (!title || !body) { showToast('제목과 내용을 모두 적어주세요', '✏️'); return; }
+      const btn = document.getElementById('sugSubmitBtn');
+      btn.disabled = true; btn.textContent = '등록 중…';
+      try {
+        const data = await dlSugFetch();
+        data.posts.unshift({ id: 'sg' + Date.now(), ts: Date.now(), authorId: dlSession.id, authorName: dlSession.name, authorEmoji: dlSession.emoji, title: title, body: body, photo: dlSugPhoto });
+        await dlSugPublish(data);
+        dlSugPosts = data.posts;
+        document.getElementById('sugTitle').value = '';
+        document.getElementById('sugBody').value = '';
+        dlSugPhotoReset();
+        dlSugRenderList();
+        showToast('문의가 등록됐어요', '📮');
+      } catch (e) {
+        showToast('등록하지 못했어요. 네트워크를 확인해주세요', '⚠️');
+      } finally {
+        btn.disabled = false; btn.textContent = '문의 등록하기';
+      }
+    }
+    async function dlSugDelete(id) {
+      try {
+        const data = await dlSugFetch();
+        data.posts = data.posts.filter(p => p.id !== id);
+        await dlSugPublish(data);
+        dlSugPosts = data.posts;
+        dlSugRenderList();
+        showToast('삭제했어요', '🗑️');
+      } catch (e) { showToast('삭제하지 못했어요', '⚠️'); }
+    }
+  
+    /* ----------------------------------------------------
+       58. 비밀번호 힌트 (2.9.39): 내 힌트 설정/수정 (기존 가입자용)
+    ---------------------------------------------------- */
+    function dlRenderMyHint() {
+      const box = document.getElementById('myHintBox');
+      if (!box) return;
+      if (!dlSession) { box.innerHTML = ''; return; }
+      box.innerHTML = '<p class="text-[11px] font-bold text-gray-500 mb-1.5">비밀번호 힌트</p>' +
+        '<div class="flex gap-2"><input type="text" id="myHintInput" placeholder="불러오는 중…" class="flex-1 min-w-0 px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-medium">' +
+        '<button type="button" onclick="dlSaveMyHint()" class="px-3.5 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold active:scale-95 transition flex-shrink-0">저장</button></div>' +
+        '<p class="text-[10px] text-gray-300 mt-1">비밀번호를 까먹으면 개발자가 이 힌트를 보고 도와줄 수 있어요.</p>';
+      dlLoadMyHint();
+    }
+    async function dlLoadMyHint() {
+      const inp = document.getElementById('myHintInput');
+      if (!inp || !dlSession) return;
+      try {
+        const reg = await dlRegistryFetch();
+        const acct = reg.accounts.find(a => a.id === dlSession.id);
+        const cur = document.getElementById('myHintInput');
+        if (acct && cur === inp) { inp.value = acct.hint || ''; inp.placeholder = '예: 강아지 이름 + 생일'; }
+      } catch (e) { if (inp) inp.placeholder = '힌트를 불러오지 못했어요'; }
+    }
+    async function dlSaveMyHint() {
+      const inp = document.getElementById('myHintInput');
+      if (!inp || !dlSession) return;
+      const hint = inp.value.trim();
+      if (!hint) { showToast('힌트를 입력해주세요', '💡'); return; }
+      try {
+        const reg = await dlRegistryFetch();
+        const acct = reg.accounts.find(a => a.id === dlSession.id);
+        if (!acct) { showToast('계정을 찾지 못했어요', '⚠️'); return; }
+        acct.hint = hint;
+        await dlRegistryPublish(reg);
+        showToast('힌트를 저장했어요', '💡');
+      } catch (e) { showToast('저장하지 못했어요', '⚠️'); }
+    }
+    const _origRenderAcctBox58 = dlRenderAccountBox;
+    dlRenderAccountBox = function () {
+      const r = _origRenderAcctBox58.apply(this, arguments);
+      try { dlRenderMyHint(); } catch (e) {}
       return r;
     };
   </script>
