@@ -554,7 +554,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         <h3 class="text-base font-bold text-gray-900">자주 쓰는 루틴 편집</h3>
         <button onclick="closeRoutineManager()" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
       </div>
-      <p class="text-xs text-gray-500 mb-3">운동&루틴 탭에서 한 번에 추가할 수 있는 루틴 목록이에요. 두 폰에 함께 동기화돼요.</p>
+      <p class="text-xs text-gray-500 mb-3">운동&루틴 탭에서 한 번에 추가할 수 있는 루틴 목록이에요. 이 폰에만 저장되고, 각자 자기 폰에서 따로 편집해 써요.</p>
       <div id="routineList" class="space-y-2 mb-4"></div>
       <form onsubmit="handleSaveRoutine(event)" class="space-y-2 p-3 bg-gray-50 rounded-2xl border border-gray-100">
         <input type="hidden" id="routineEditId">
@@ -1277,7 +1277,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       try {
         lastSyncTs = Date.now();
         syncStore.set('duolog_sync_ts', String(lastSyncTs));
-        const payload = await syncEncrypt({ ts: lastSyncTs, data: { items: items, profile: duoProfile, categories: categories, routines: routines } });
+        const payload = await syncEncrypt({ ts: lastSyncTs, data: { items: items, profile: duoProfile, categories: categories } });
         syncClient.publish(syncTopic, payload, { retain: true, qos: 1 });
       } catch (err) {
         console.warn('동기화 전송 실패:', err);
@@ -1290,7 +1290,6 @@ Check your Browserslist config to be sure that your targets are set up correctly
         if (data && data.items) items = data.items;
         if (data && data.profile) duoProfile = data.profile;
         if (data && data.categories) categories = data.categories;
-        if (data && data.routines) routines = data.routines;
         lastSyncTs = ts;
         syncStore.set('duolog_sync_ts', String(ts));
         persistData();
