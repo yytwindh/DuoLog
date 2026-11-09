@@ -261,6 +261,16 @@ Check your Browserslist config to be sure that your targets are set up correctly
         <!-- 동적 렌더링 -->
       </div>
 
+      <!-- 자주 쓰는 루틴 빠른 추가 (운동&루틴 탭에서만 표시) -->
+      <div id="routineQuickBar" class="hidden mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-gray-700">자주 쓰는 루틴</span>
+          <button onclick="openRoutineManager()" class="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full active:scale-95 transition">루틴 편집</button>
+        </div>
+        <div id="routineChips" class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5"></div>
+        <p class="text-[10px] text-gray-300 mt-1.5">누르면 선택한 날짜에 바로 추가돼요</p>
+      </div>
+
       <!-- 선택한 날짜가 공휴일이면 표시되는 배너 -->
       <div id="holidayBanner" class="hidden mb-3 px-3 py-2 rounded-2xl bg-red-50 border border-red-100 text-xs font-semibold text-red-500"></div>
 
@@ -537,6 +547,31 @@ Check your Browserslist config to be sure that your targets are set up correctly
     </div>
   </div>
 
+  <!-- [모달] 자주 쓰는 루틴 관리 -->
+  <div id="modalRoutines" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+    <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-base font-bold text-gray-900">자주 쓰는 루틴 편집</h3>
+        <button onclick="closeRoutineManager()" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+      </div>
+      <p class="text-xs text-gray-500 mb-3">운동&루틴 탭에서 한 번에 추가할 수 있는 루틴 목록이에요. 두 폰에 함께 동기화돼요.</p>
+      <div id="routineList" class="space-y-2 mb-4"></div>
+      <form onsubmit="handleSaveRoutine(event)" class="space-y-2 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+        <input type="hidden" id="routineEditId">
+        <input type="text" id="routineTitle" placeholder="루틴 이름 (예: 팔, 농구 2시간)" required class="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-medium">
+        <div class="flex gap-2">
+          <select id="routineOwner" class="flex-1 px-2 py-2 bg-white rounded-xl border border-gray-200 text-xs font-medium"></select>
+          <select id="routineCategory" class="flex-1 px-2 py-2 bg-white rounded-xl border border-gray-200 text-xs font-medium"></select>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] text-gray-400 font-medium flex-shrink-0">기본 시간</span>
+          <input type="time" id="routineTime" class="flex-1 px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-medium">
+        </div>
+        <button type="submit" id="routineSaveBtn" class="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-xs active:scale-95 transition">루틴 추가</button>
+      </form>
+    </div>
+  </div>
+
   <!-- 토스트 알림창 -->
   <div id="toast" class="fixed top-5 max-w-xs w-full bg-gray-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-medium transform -translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50">
     <span id="toastIcon">✨</span>
@@ -606,6 +641,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
 
         const savedCats = localStorage.getItem('duolog_categories');
         if (savedCats) categories = JSON.parse(savedCats);
+
+        const savedRoutines = localStorage.getItem('duolog_routines');
+        if (savedRoutines) routines = JSON.parse(savedRoutines);
       } catch (err) {
         console.warn('LocalStorage 로드 실패:', err);
       }
@@ -616,6 +654,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         localStorage.setItem('duolog_items', JSON.stringify(items));
         localStorage.setItem('duolog_profile', JSON.stringify(duoProfile));
         localStorage.setItem('duolog_categories', JSON.stringify(categories));
+        localStorage.setItem('duolog_routines', JSON.stringify(routines));
       } catch (err) {
         console.warn('LocalStorage 저장 실패:', err);
       }
@@ -1238,7 +1277,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       try {
         lastSyncTs = Date.now();
         syncStore.set('duolog_sync_ts', String(lastSyncTs));
-        const payload = await syncEncrypt({ ts: lastSyncTs, data: { items: items, profile: duoProfile, categories: categories } });
+        const payload = await syncEncrypt({ ts: lastSyncTs, data: { items: items, profile: duoProfile, categories: categories, routines: routines } });
         syncClient.publish(syncTopic, payload, { retain: true, qos: 1 });
       } catch (err) {
         console.warn('동기화 전송 실패:', err);
@@ -1251,6 +1290,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         if (data && data.items) items = data.items;
         if (data && data.profile) duoProfile = data.profile;
         if (data && data.categories) categories = data.categories;
+        if (data && data.routines) routines = data.routines;
         lastSyncTs = ts;
         syncStore.set('duolog_sync_ts', String(ts));
         persistData();
@@ -1396,13 +1436,21 @@ Check your Browserslist config to be sure that your targets are set up correctly
     /* ----------------------------------------------------
        12. 데이터 버전 마이그레이션 (v2: 기존 샘플 데이터 1회 초기화)
     ---------------------------------------------------- */
-    const DUOLOG_DATA_VERSION = '2';
+    const DUOLOG_DATA_VERSION = '3';
     function migrateDataIfNeeded() {
       try {
-        if (syncStore.get('duolog_version') === DUOLOG_DATA_VERSION) return;
-        syncStore.del('duolog_items');
-        syncStore.del('duolog_profile');
-        syncStore.del('duolog_categories');
+        const prevVersion = syncStore.get('duolog_version');
+        if (prevVersion === DUOLOG_DATA_VERSION) return;
+        if (prevVersion !== '2') {
+          // v2: 기존 샘플 데이터 1회 초기화
+          syncStore.del('duolog_items');
+          syncStore.del('duolog_profile');
+          syncStore.del('duolog_categories');
+        }
+        // v3: 자주 쓰는 루틴 기본값 시드 (없을 때만)
+        if (!syncStore.get('duolog_routines')) {
+          syncStore.set('duolog_routines', JSON.stringify(DEFAULT_ROUTINES));
+        }
         syncStore.set('duolog_version', DUOLOG_DATA_VERSION);
         // 파트너 폰에 남아 있는 옛 샘플 데이터가 되돌아오지 않도록 기준 시각을 지금으로 맞춘다
         lastSyncTs = Date.now();
@@ -1646,6 +1694,180 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
 
     window.addEventListener('DOMContentLoaded', () => { setTimeout(maybeShowIosGuide, 1200); });
+  
+    /* ----------------------------------------------------
+       16. 자주 쓰는 루틴 (프리셋 빠른 추가)
+    ---------------------------------------------------- */
+    const DEFAULT_ROUTINES = [
+      { id: 'rt-arm', title: '팔', owner: 'both', time: '', categoryId: 'cat-workout' },
+      { id: 'rt-leg', title: '다리', owner: 'both', time: '', categoryId: 'cat-workout' },
+      { id: 'rt-back', title: '등', owner: 'both', time: '', categoryId: 'cat-workout' },
+      { id: 'rt-basketball', title: '농구 2시간', owner: 'both', time: '', categoryId: 'cat-workout' },
+      { id: 'rt-swim', title: '수영 2시간', owner: 'both', time: '', categoryId: 'cat-workout' }
+    ];
+    let routines = DEFAULT_ROUTINES.slice();
+
+    function routineOwnerName(owner) {
+      if (owner === 'p1') return duoProfile.p1.name;
+      if (owner === 'p2') return duoProfile.p2.name;
+      return '함께';
+    }
+
+    function renderRoutineChips() {
+      const box = document.getElementById('routineChips');
+      if (!box) return;
+      if (!routines.length) {
+        box.innerHTML = '<span class="text-[11px] text-gray-400">아직 루틴이 없어요. 루틴 편집에서 추가해보세요.</span>';
+        return;
+      }
+      box.innerHTML = routines.map(r => {
+        const cat = categories.find(c => c.id === r.categoryId) || { emoji: '💪' };
+        const dot = r.owner === 'p1' ? '#6366F1' : r.owner === 'p2' ? '#EC4899' : '#8B5CF6';
+        return '<button onclick="quickAddRoutine(\'' + r.id + '\')" class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-white border border-gray-200 shadow-sm text-xs font-semibold text-gray-700 active:scale-95 transition">' +
+          '<span>' + (cat.emoji || '💪') + '</span>' + escapeHtml(r.title) +
+          '<span class="w-1.5 h-1.5 rounded-full" style="background:' + dot + '"></span></button>';
+      }).join('');
+    }
+
+    function updateRoutineBar() {
+      const bar = document.getElementById('routineQuickBar');
+      if (!bar) return;
+      const show = activeNavTab === 'routines';
+      bar.classList.toggle('hidden', !show);
+      if (show) renderRoutineChips();
+    }
+
+    function quickAddRoutine(id) {
+      const r = routines.find(x => x.id === id);
+      if (!r) return;
+      items.push({
+        id: String(Date.now()) + Math.floor(Math.random() * 1000),
+        title: r.title,
+        date: selectedDate,
+        time: r.time || '',
+        owner: r.owner || 'both',
+        categoryId: r.categoryId || 'cat-workout',
+        memo: '',
+        completed: false,
+        cheers: 0
+      });
+      persistData();
+      renderItems();
+      showToast('"' + r.title + '" 루틴을 추가했어요', '💪');
+    }
+
+    function openRoutineManager() {
+      fillRoutineFormOptions();
+      resetRoutineForm();
+      renderRoutineList();
+      const modal = document.getElementById('modalRoutines');
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function closeRoutineManager() {
+      const modal = document.getElementById('modalRoutines');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    function fillRoutineFormOptions() {
+      const ownerSel = document.getElementById('routineOwner');
+      ownerSel.innerHTML =
+        '<option value="p1">' + escapeHtml(duoProfile.p1.name) + '</option>' +
+        '<option value="p2">' + escapeHtml(duoProfile.p2.name) + '</option>' +
+        '<option value="both">함께</option>';
+      const catSel = document.getElementById('routineCategory');
+      catSel.innerHTML = categories.map(c => '<option value="' + c.id + '">' + (c.emoji || '') + ' ' + escapeHtml(c.name) + '</option>').join('');
+      if (categories.some(c => c.id === 'cat-workout')) catSel.value = 'cat-workout';
+    }
+
+    function resetRoutineForm() {
+      document.getElementById('routineEditId').value = '';
+      document.getElementById('routineTitle').value = '';
+      document.getElementById('routineTime').value = '';
+      document.getElementById('routineOwner').value = 'both';
+      if (categories.some(c => c.id === 'cat-workout')) document.getElementById('routineCategory').value = 'cat-workout';
+      document.getElementById('routineSaveBtn').innerText = '루틴 추가';
+    }
+
+    function renderRoutineList() {
+      const box = document.getElementById('routineList');
+      if (!routines.length) {
+        box.innerHTML = '<p class="text-[11px] text-gray-400 text-center py-2">등록된 루틴이 없어요.</p>';
+        return;
+      }
+      box.innerHTML = routines.map(r => {
+        const cat = categories.find(c => c.id === r.categoryId) || { emoji: '📌', name: '일반' };
+        const meta = routineOwnerName(r.owner) + ' · ' + cat.name + (r.time ? ' · ' + r.time : '');
+        return '<div class="flex items-center gap-2 p-2.5 bg-white rounded-2xl border border-gray-100">' +
+          '<span class="text-base">' + (cat.emoji || '💪') + '</span>' +
+          '<div class="flex-1 min-w-0"><p class="text-xs font-bold text-gray-800 truncate">' + escapeHtml(r.title) + '</p>' +
+          '<p class="text-[10px] text-gray-400">' + escapeHtml(meta) + '</p></div>' +
+          '<button onclick="editRoutine(\'' + r.id + '\')" class="px-2 py-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50 rounded-lg">편집</button>' +
+          '<button onclick="deleteRoutine(\'' + r.id + '\')" class="px-2 py-1 text-[11px] font-semibold text-red-500 bg-red-50 rounded-lg">삭제</button></div>';
+      }).join('');
+    }
+
+    function editRoutine(id) {
+      const r = routines.find(x => x.id === id);
+      if (!r) return;
+      fillRoutineFormOptions();
+      document.getElementById('routineEditId').value = r.id;
+      document.getElementById('routineTitle').value = r.title;
+      document.getElementById('routineOwner').value = r.owner || 'both';
+      document.getElementById('routineCategory').value = r.categoryId || 'cat-workout';
+      document.getElementById('routineTime').value = r.time || '';
+      document.getElementById('routineSaveBtn').innerText = '루틴 수정 저장';
+    }
+
+    function deleteRoutine(id) {
+      routines = routines.filter(x => x.id !== id);
+      persistData();
+      renderRoutineList();
+      renderRoutineChips();
+      showToast('루틴을 삭제했어요', '🗑️');
+    }
+
+    function handleSaveRoutine(e) {
+      e.preventDefault();
+      const title = document.getElementById('routineTitle').value.trim();
+      if (!title) return;
+      const editId = document.getElementById('routineEditId').value;
+      const data = {
+        title: title,
+        owner: document.getElementById('routineOwner').value,
+        categoryId: document.getElementById('routineCategory').value,
+        time: document.getElementById('routineTime').value || ''
+      };
+      if (editId) {
+        const r = routines.find(x => x.id === editId);
+        if (r) Object.assign(r, data);
+        showToast('루틴을 수정했어요', '✨');
+      } else {
+        routines.push(Object.assign({ id: 'rt-' + Date.now() }, data));
+        showToast('새 루틴을 추가했어요', '✨');
+      }
+      persistData();
+      resetRoutineForm();
+      renderRoutineList();
+      renderRoutineChips();
+    }
+
+    // 탭 전환·데이터 변경 시 루틴 바 갱신
+    const _origSwitchTab = switchTab;
+    switchTab = function (tab) {
+      _origSwitchTab(tab);
+      updateRoutineBar();
+    };
+    const _origPersistData3 = persistData;
+    persistData = function () {
+      _origPersistData3();
+      renderRoutineChips();
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      updateRoutineBar();
+      renderRoutineChips();
+    });
   </script>
 </body>
 </html>
