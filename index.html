@@ -298,15 +298,12 @@ Check your Browserslist config to be sure that your targets are set up correctly
     </div>
 
     <!-- 4. 하단 네비게이션 바 -->
-    <nav class="fixed bottom-0 max-w-md w-full bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 py-2.5 z-20 flex justify-between items-center text-xs font-medium text-gray-400">
+    <nav class="fixed bottom-0 max-w-md w-full bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 py-2.5 z-20 flex justify-around items-center text-xs font-medium text-gray-400">
       <button onclick="switchTab('schedule')" id="nav-schedule" class="flex flex-col items-center gap-1 text-indigo-600">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
         <span>일정 & 할일</span>
       </button>
-      <button onclick="switchTab('routines')" id="nav-routines" class="flex flex-col items-center gap-1 hover:text-gray-600">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-        <span>운동 & 루틴</span>
-      </button>
+      
       <button onclick="switchTab('shared')" id="nav-shared" class="flex flex-col items-center gap-1 hover:text-gray-600">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
         <span>둘만의 버킷</span>
@@ -1814,7 +1811,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     function updateRoutineBar() {
       const bar = document.getElementById('routineQuickBar');
       if (!bar) return;
-      const show = activeNavTab === 'routines';
+      const show = activeNavTab === 'schedule';
       bar.classList.toggle('hidden', !show);
       if (show) renderRoutineChips();
     }
