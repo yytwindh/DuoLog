@@ -226,8 +226,18 @@ Check your Browserslist config to be sure that your targets are set up correctly
         </div>
       </div>
 
-      <!-- 2. 주간 캘린더 날짜 스트립 (가로 스크롤 가능) -->
-      <div class="mt-4 flex items-center justify-between no-scrollbar overflow-x-auto py-1" id="weekDateStrip">
+      <!-- 2-0. 주 네비게이션 (저번주/다음주 + 몇월 몇주차 표시) -->
+      <div id="weekNavRow" class="mt-3 flex items-center justify-between px-0.5">
+        <button onclick="dlMoveWeek(-1)" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-lg active:scale-95 transition" aria-label="저번주">‹</button>
+        <p id="weekNavLabel" class="text-xs font-bold text-gray-700"></p>
+        <div class="flex items-center gap-1.5">
+          <button onclick="goToToday()" class="px-2.5 h-8 rounded-full bg-gray-100 text-[11px] font-bold text-gray-500 active:scale-95 transition">오늘</button>
+          <button onclick="dlMoveWeek(1)" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-lg active:scale-95 transition" aria-label="다음주">›</button>
+        </div>
+      </div>
+
+      <!-- 2. 주간 캘린더 날짜 스트립 (월~일 고정) -->
+      <div class="mt-2 flex items-center justify-between no-scrollbar overflow-x-auto py-1" id="weekDateStrip">
         <!-- JS로 동적 생성 -->
       </div>
 
@@ -239,7 +249,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
           <button onclick="changeMonth(1)" class="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:scale-95 transition text-base">›</button>
         </div>
         <div class="grid grid-cols-7 text-center text-[11px] font-semibold text-gray-400 mb-1">
-          <span class="text-red-400">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="text-blue-400">토</span>
+          <span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="text-blue-400">토</span><span class="text-red-400">일</span>
         </div>
         <div id="monthGrid" class="grid grid-cols-7 gap-1"></div>
         <p class="text-[10px] text-gray-300 mt-1.5 text-right pr-1">칩은 그날 일정의 종류 · 테두리 파랑=동호, 분홍=뱁새, 주황=함께 · 빨간 날짜는 공휴일</p>
@@ -1023,10 +1033,10 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
       const base = new Date(selectedDate);
       
-      // 선택된 날짜 기준 앞뒤 3일씩 총 7일 스트립 생성
-      for (let i = -3; i <= 3; i++) {
-        const d = new Date(base);
-        d.setDate(base.getDate() + i);
+      // 월~일 고정 주간 스트립 (2.9.22): 표시 중인 주의 월요일부터 7일
+      for (let i = 0; i <= 6; i++) {
+        const d = new Date(dlWeekMonday());
+        d.setDate(dlWeekMonday().getDate() + i);
         const dateStr = formatDate(d);
         const isSelected = dateStr === selectedDate;
         const dayName = dayNames[d.getDay()];
@@ -1034,7 +1044,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         const isToday = dateStr === formatDate(new Date());
 
         // 해당 날짜에 일정이 있는지 체크 점(dot) 표시
-        const hasEvents = items.some(it => it.date === dateStr && dlOwnerVisible(it));
+        const hasEvents = items.some(it => it.date === dateStr && dlOwnerVisible(it) && (selectedCategoryFilter === 'all' || it.categoryId === selectedCategoryFilter));
 
         const btn = document.createElement('button');
         btn.onclick = () => selectDate(dateStr);
@@ -1049,6 +1059,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
           <span class="text-sm mt-0.5 ${isSelected ? 'text-white' : 'text-gray-800'} font-semibold">${dayNum}</span>
           ${isToday && !isSelected ? '<span class="w-1 h-1 bg-indigo-600 rounded-full mt-1"></span>' : ''}
           ${hasEvents && isSelected ? '<span class="w-1 h-1 bg-pink-400 rounded-full mt-1"></span>' : (hasEvents && !isToday ? '<span class="w-1 h-1 bg-gray-300 rounded-full mt-1"></span>' : '')}
+          ${(typeof dlMilestone === 'function' && dlMilestone(dateStr)) ? '<span class="text-[8px] leading-none mt-0.5">💗</span>' : ''}
         `;
         container.appendChild(btn);
       }
@@ -1826,7 +1837,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const m = monthCursor.getMonth();
       if (title) title.innerText = y + '년 ' + (m + 1) + '월';
       if (typeof ensureHolidays === 'function') ensureHolidays(y);
-      const startDay = new Date(y, m, 1).getDay();
+      const startDay = (new Date(y, m, 1).getDay() + 6) % 7; // 월요일 시작 (2.9.22)
       const lastDate = new Date(y, m + 1, 0).getDate();
       const totalCells = Math.ceil((startDay + lastDate) / 7) * 7;
       const start = new Date(y, m, 1 - startDay);
@@ -1839,8 +1850,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
         const isSel = ds === selectedDate;
         const isToday = ds === todayStr;
         const dow = d.getDay();
-        const dayItems = items.filter(it => it.date === ds && dlOwnerVisible(it));
+        const dayItems = items.filter(it => it.date === ds && dlOwnerVisible(it) && (selectedCategoryFilter === 'all' || it.categoryId === selectedCategoryFilter));
         const holName = (typeof getHoliday === 'function') ? getHoliday(ds) : null;
+        const msDays = (typeof dlMilestone === 'function') ? dlMilestone(ds) : 0;
         let dots = '';
         dayItems.slice(0, 3).forEach(it => {
           const cat = categories.find(c => c.id === it.categoryId);
@@ -1855,7 +1867,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         out += '<button onclick="onMonthDayClick(\'' + ds + '\')" class="flex flex-col items-center py-1.5 rounded-xl ' +
           (isSel ? 'bg-indigo-600 shadow-sm' : 'hover:bg-gray-50') + '">' +
           '<span class="text-xs font-semibold ' + numCls + todayCls + '">' + d.getDate() + '</span>' +
-          '<span class="block w-full max-w-[46px] truncate text-center text-[8px] leading-tight h-3 ' + (holName ? (isSel ? 'text-red-200' : 'text-red-400') : '') + '">' + (holName || '') + '</span>' +
+          '<span class="block w-full max-w-[46px] truncate text-center text-[8px] leading-tight h-3 ' + (holName ? (isSel ? 'text-red-200' : 'text-red-400') : (msDays ? (isSel ? 'text-pink-200' : 'text-pink-500 font-bold') : '')) + '">' + (holName || (msDays ? '💗' + msDays.toLocaleString() + '일' : '')) + '</span>' +
           '<span class="flex items-center justify-center gap-0.5 mt-0.5 h-3.5">' + dots + '</span></button>';
       }
       grid.innerHTML = out;
@@ -2477,7 +2489,20 @@ Check your Browserslist config to be sure that your targets are set up correctly
           if (days > 0) text = '💙 함께한 지 ' + days.toLocaleString() + '일째';
         }
       }
-      const next = nextAnniversary();
+      let next = nextAnniversary();
+      // 100일 단위 마일스톤도 기념일처럼 D-day 후보에 포함 (2.9.23)
+      if (duoProfile.startDate) {
+        const s0 = dlParseDate(duoProfile.startDate);
+        if (s0 && !isNaN(s0)) {
+          const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+          const cur0 = Math.floor((t0 - s0) / 86400000) + 1;
+          if (cur0 > 0) {
+            const target0 = Math.ceil(cur0 / 100) * 100;
+            const mEvt = { title: '함께한 지 ' + target0.toLocaleString() + '일', diff: target0 - cur0 };
+            if (mEvt.diff > 0 && (!next || mEvt.diff < next.diff)) next = mEvt;
+          }
+        }
+      }
       if (next) {
         if (next.diff === 0) text += ' · 오늘은 ' + next.title + ' 💗';
         else if (next.diff <= 30) text += ' · ' + next.title + ' D-' + next.diff;
@@ -2489,6 +2514,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       if (!banner) return;
       const md = (selectedDate || '').slice(5);
       const hits = (duoProfile.anniversaries || []).filter(a => a.date && a.date.slice(5) === md);
+      const msSel = (typeof dlMilestone === 'function') ? dlMilestone(selectedDate) : 0;
+      if (msSel) hits.push({ title: '함께한 지 ' + msSel.toLocaleString() + '일' });
       if (hits.length) {
         banner.textContent = '💗 오늘은 ' + hits.map(a => a.title).join(' · ') + ' 기념일이에요';
         banner.classList.remove('hidden');
@@ -3194,6 +3221,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const id = document.getElementById('bucketId').value;
       if (!id) return;
       buckets = buckets.filter(x => x.id !== id);
+      try { const tb = dlTombstones(); if (tb.bucket.indexOf(id) < 0) tb.bucket.push(id); } catch (e) {}
       persistData();
       closeBucketModal();
       renderBuckets();
@@ -3393,6 +3421,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const id = document.getElementById('moneyId').value;
       if (!id) return;
       moneySteps = moneySteps.filter(x => x.id !== id);
+      try { const tb = dlTombstones(); if (tb.money.indexOf(id) < 0) tb.money.push(id); } catch (e) {}
       persistData();
       closeMoneyModal();
       renderMoney();
@@ -3482,6 +3511,164 @@ Check your Browserslist config to be sure that your targets are set up correctly
       return r30;
     };
     window.addEventListener('DOMContentLoaded', () => { window.__dlLoaded30 = true; });
+  
+    /* ----------------------------------------------------
+       31. 카테고리 필터 변경 시 달력도 다시 그림 (2.9.21)
+    ---------------------------------------------------- */
+    const _origSetCategoryFilter31 = setCategoryFilter;
+    setCategoryFilter = function (catId) {
+      _origSetCategoryFilter31(catId);
+      try { renderDateStrip(); } catch (e) {}
+      try { renderMonthView(); } catch (e) {}
+    };
+  
+    /* ----------------------------------------------------
+       32. 주간 보기: 월~일 고정 주 + 주 네비게이션 (2.9.22)
+       - 표시 중인 주의 월요일(dlWeekAnchor)을 기준으로 스트립을 그림
+       - 날짜를 눌러도 주는 이동하지 않음 (선택만 바뀜). 주 밖 날짜가 선택되면 그 주로 따라감
+       - 라벨: '2026년 11월 2주차 · 11.9 ~ 11.15' (주차는 그 주 월요일 날짜 기준)
+    ---------------------------------------------------- */
+    let dlWeekAnchor = null;
+    function dlMondayOf(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      const dow = (d.getDay() + 6) % 7;
+      d.setDate(d.getDate() - dow);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    function dlWeekMonday() {
+      if (!dlWeekAnchor) dlWeekAnchor = dlMondayOf(selectedDate);
+      return dlWeekAnchor;
+    }
+    function dlRenderWeekNav() {
+      const label = document.getElementById('weekNavLabel');
+      if (!label) return;
+      const mon = dlWeekMonday();
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      const weekNo = Math.ceil(mon.getDate() / 7);
+      label.innerText = mon.getFullYear() + '년 ' + (mon.getMonth() + 1) + '월 ' + weekNo + '주차 · ' + (mon.getMonth() + 1) + '.' + mon.getDate() + ' ~ ' + (sun.getMonth() + 1) + '.' + sun.getDate();
+    }
+    function dlMoveWeek(dir) {
+      const mon = dlWeekMonday();
+      mon.setDate(mon.getDate() + dir * 7);
+      dlWeekAnchor = mon;
+      renderDateStrip();
+    }
+    const _origRenderStrip32 = renderDateStrip;
+    renderDateStrip = function () { _origRenderStrip32(); dlRenderWeekNav(); };
+    const _origSelectDate32 = selectDate;
+    selectDate = function (dateStr) {
+      const mon = dlMondayOf(dateStr);
+      if (!dlWeekAnchor || mon.getTime() !== dlWeekMonday().getTime()) dlWeekAnchor = mon;
+      _origSelectDate32(dateStr);
+    };
+    const _origSetViewMode32 = setViewMode;
+    setViewMode = function (mode) {
+      _origSetViewMode32(mode);
+      const nav = document.getElementById('weekNavRow');
+      if (nav) nav.classList.toggle('hidden', mode !== 'week');
+      if (mode === 'week') { dlWeekAnchor = dlMondayOf(selectedDate); renderDateStrip(); }
+    };
+  
+    /* ----------------------------------------------------
+       34. 달력 스와이프 네비게이션 (2.9.22)
+       - 달력 영역에서 좌우로 밀면 주간 보기에서는 주 이동, 월간 보기에서는 월 이동
+       - 세로 움직임이 크면 스크롤로 간주해 무시. 스와이프 직후의 클릭(날짜 버튼 오작동)은 한 번 막음
+    ---------------------------------------------------- */
+    function dlInitSwipe34() {
+      const sec = document.getElementById('calendarSection');
+      if (!sec || sec.__dlSwipeInit) return;
+      sec.__dlSwipeInit = true;
+      let sx = 0, sy = 0, tracking = false;
+      window.__dlSwipeAt = 0;
+      sec.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; tracking = true; }, { passive: true });
+      sec.addEventListener('pointerup', e => {
+        if (!tracking) return;
+        tracking = false;
+        const dx = e.clientX - sx, dy = e.clientY - sy;
+        if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        window.__dlSwipeAt = Date.now();
+        if (typeof viewMode !== 'undefined' && viewMode === 'month') {
+          if (typeof changeMonth === 'function') changeMonth(dx < 0 ? 1 : -1);
+        } else if (typeof dlMoveWeek === 'function') {
+          dlMoveWeek(dx < 0 ? 1 : -1);
+        }
+      }, { passive: true });
+      sec.addEventListener('pointercancel', () => { tracking = false; }, { passive: true });
+      document.addEventListener('click', e => {
+        if (Date.now() - (window.__dlSwipeAt || 0) < 350 && sec.contains(e.target)) { e.stopPropagation(); e.preventDefault(); }
+      }, true);
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', dlInitSwipe34);
+    else dlInitSwipe34();
+  
+    /* ----------------------------------------------------
+       35. 함께한 지 100일 단위 마일스톤 (2.9.23)
+       - 시작일(1일째) 기준 100·200·…·900·1000일째 되는 날을 기념일로 취급
+       - 월간 달력 셀에 '💗900일', 주간 스트립에 💗, 선택 시 기념일 배너, 헤더 D-day 후보에 포함
+    ---------------------------------------------------- */
+    function dlMilestone(dateStr) {
+      if (!duoProfile.startDate || !dateStr) return 0;
+      const start = dlParseDate(duoProfile.startDate);
+      const d = dlParseDate(dateStr);
+      if (!start || !d || isNaN(start) || isNaN(d)) return 0;
+      const n = Math.floor((d - start) / 86400000) + 1;
+      return (n >= 100 && n % 100 === 0) ? n : 0;
+    }
+    // 마일스톤이 걸린 달은 셀 표시를 위해 월간 뷰를 다시 그림 (시작일 저장 시 persist 훅과 함께 동작)
+    const _origRenderCoupleDday35 = renderCoupleDday;
+    renderCoupleDday = function () {
+      _origRenderCoupleDday35();
+      try { renderMonthView(); } catch (e) {}
+      try { renderDateStrip(); } catch (e) {}
+    };
+  
+    /* ----------------------------------------------------
+       36. 동기화 병합 보호 (2.9.24): 오래된 스냅샷이 최신 버킷/머니로드를 지우지 못하게
+       - 수신 적용 시 버킷/머니로드는 id 기준 병합 (원격에 없는 로컬 항목 유지)
+       - 삭제 기록(tombstone)은 프로필에 실어 동기화하고 병합 시 제외 — 삭제한 항목은 되살아나지 않음
+       - tombstone 자체도 합집합으로 병합해 상대의 오래된 프로필이 삭제 기록을 지우지 못하게 함
+    ---------------------------------------------------- */
+    function dlTombstones() {
+      if (!duoProfile.tombstones) duoProfile.tombstones = { bucket: [], money: [] };
+      if (!Array.isArray(duoProfile.tombstones.bucket)) duoProfile.tombstones.bucket = [];
+      if (!Array.isArray(duoProfile.tombstones.money)) duoProfile.tombstones.money = [];
+      return duoProfile.tombstones;
+    }
+    const _origApplyRemote36 = applyRemoteData;
+    applyRemoteData = async function (ts, data) {
+      const localBuckets = (typeof buckets !== 'undefined' && Array.isArray(buckets)) ? buckets.slice() : [];
+      const localMoney = (typeof moneySteps !== 'undefined' && Array.isArray(moneySteps)) ? moneySteps.slice() : [];
+      let localTb = { bucket: [], money: [] };
+      try { localTb = JSON.parse(JSON.stringify(dlTombstones())); } catch (e) {}
+      const r = await _origApplyRemote36.apply(this, arguments);
+      try {
+        const tb = dlTombstones();
+        localTb.bucket.forEach(id => { if (tb.bucket.indexOf(id) < 0) tb.bucket.push(id); });
+        localTb.money.forEach(id => { if (tb.money.indexOf(id) < 0) tb.money.push(id); });
+        let changed = false;
+        if (data && Array.isArray(data.buckets) && typeof buckets !== 'undefined') {
+          const before = buckets.length;
+          buckets = buckets.filter(b => tb.bucket.indexOf(b.id) < 0);
+          const ids = new Set(buckets.map(b => b.id));
+          localBuckets.forEach(b => { if (!ids.has(b.id) && tb.bucket.indexOf(b.id) < 0) { buckets.push(b); ids.add(b.id); } });
+          if (buckets.length !== before) changed = true;
+        }
+        if (data && Array.isArray(data.money) && typeof moneySteps !== 'undefined') {
+          const before = moneySteps.length;
+          moneySteps = moneySteps.filter(s => tb.money.indexOf(s.id) < 0);
+          const ids = new Set(moneySteps.map(s => s.id));
+          localMoney.forEach(s => { if (!ids.has(s.id) && tb.money.indexOf(s.id) < 0) { moneySteps.push(s); ids.add(s.id); } });
+          if (moneySteps.length !== before) changed = true;
+        }
+        if (changed) {
+          persistData();
+          if (typeof renderBuckets === 'function') renderBuckets();
+          if (typeof renderMoney === 'function') renderMoney();
+        }
+      } catch (e) {}
+      return r;
+    };
   </script>
 </body>
 </html>
