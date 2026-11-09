@@ -649,6 +649,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       <div id="profAccountBox" class="mb-4"></div>
       <div id="suggestEntry" class="mb-4"></div>
       <div id="myHintBox" class="mb-4"></div>
+      <div id="myPwBox" class="mb-4"></div>
+      <div id="myDataBox" class="mb-4"></div>
       <form onsubmit="handleSaveProfile(event)" class="space-y-4">
         <!-- 나 -->
         <div class="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 w-full overflow-hidden">
@@ -3961,6 +3963,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
           '<p class="text-xs font-bold text-gray-800">' + (a.emoji || '🙂') + ' ' + escapeHtml(a.name || '') + ' <span class="text-gray-400 font-medium">(' + escapeHtml(a.id) + ')</span></p>' +
           '<p class="text-[10px] text-gray-400 mt-0.5">가입 ' + dlAcctDate(a.createdAt) + ' · 비밀번호 ' + (a.pwLen ? a.pwLen + '자리' : '—') + ' · 해시 ●●●●●●</p>' +
           '<p class="text-[10px] text-gray-500 mt-0.5">💡 힌트: ' + escapeHtml(a.hint || '없음') + '</p>' +
+          '<button type="button" data-acct-del="' + escapeHtml(a.id) + '" onclick="dlDeleteAccount(this)" class="mt-2 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-500 text-[10px] font-bold active:scale-95 transition">계정 삭제</button>' +
           '</div>').join('');
       } catch (e) {
         list.innerHTML = '<p class="text-xs text-rose-500 text-center py-4">서버에 연결할 수 없어요.</p>';
@@ -4814,7 +4817,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
           (canDel ? '<button onclick="dlSugDelete(\'' + p.id + '\')" class="text-gray-300 hover:text-rose-500 text-xs flex-shrink-0">✕</button>' : '') + '</div>' +
           '<p class="text-[10px] text-gray-400 mt-0.5">' + (p.authorEmoji || '🙂') + ' ' + escapeHtml(p.authorName || '') + ' · ' + (typeof commentTimeText === 'function' ? commentTimeText(p.ts) : '') + '</p>' +
           '<p class="text-xs text-gray-600 break-words mt-1.5 whitespace-pre-wrap">' + escapeHtml(p.body) + '</p>' +
-          (p.photo ? '<img src="' + p.photo + '" class="w-full rounded-xl border border-gray-100 mt-2" alt="">' : '') + '</div>';
+          (p.photo ? '<img src="' + p.photo + '" class="w-full rounded-xl border border-gray-100 mt-2" alt="">' : '') +
+          dlSugExtraHtml(p, admin) + '</div>';
       }).join('');
     }
     async function openSuggest() {
@@ -5211,7 +5215,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.47', code: 57 };
+    window.DL_VERSION = { name: '2.9.48', code: 58 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -5247,6 +5251,244 @@ Check your Browserslist config to be sure that your targets are set up correctly
       overlays.forEach(m => mo.observe(m, { attributes: true, attributeFilter: ['class'] }));
       lock();
     })();
+  
+    /* ----------------------------------------------------
+       76. 비밀번호 변경 (2.9.48)
+       - 프로필의 '비밀번호 변경' 칸: 현재 비밀번호를 확인한 뒤에만 교체 (해시·자리수 갱신 후 레지스트리 재게시)
+    ---------------------------------------------------- */
+    function dlRenderPwBox() {
+      const box = document.getElementById('myPwBox');
+      if (!box) return;
+      if (!dlSession) { box.innerHTML = ''; return; }
+      box.innerHTML = '<p class="text-[11px] font-bold text-gray-500 mb-1.5">비밀번호 변경</p>' +
+        '<div class="space-y-2">' +
+        '<input type="password" id="pwCur" placeholder="현재 비밀번호" autocomplete="current-password" class="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-medium">' +
+        '<input type="password" id="pwNew" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password" class="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-medium">' +
+        '<input type="password" id="pwNew2" placeholder="새 비밀번호 확인" autocomplete="new-password" class="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-medium">' +
+        '<button type="button" onclick="dlChangePassword()" class="w-full py-2 rounded-xl bg-gray-900 text-white text-xs font-bold active:scale-95 transition">비밀번호 바꾸기</button></div>';
+    }
+    async function dlChangePassword() {
+      if (!dlSession) return;
+      const cur = document.getElementById('pwCur').value;
+      const nw = document.getElementById('pwNew').value;
+      const nw2 = document.getElementById('pwNew2').value;
+      if (!cur) { showToast('현재 비밀번호를 입력해주세요', '🔑'); return; }
+      if (nw.length < 4) { showToast('새 비밀번호는 4자 이상으로 해주세요', '🔑'); return; }
+      if (nw !== nw2) { showToast('새 비밀번호 확인이 서로 달라요', '🔑'); return; }
+      if (nw === cur) { showToast('지금 비밀번호와 같아요', '🔑'); return; }
+      try {
+        const reg = await dlRegistryFetch();
+        const acct = reg.accounts.find(a => a.id === dlSession.id);
+        if (!acct) { showToast('계정을 찾지 못했어요', '⚠️'); return; }
+        if (await dlPwHash(dlSession.id, cur) !== acct.pwHash) { showToast('현재 비밀번호가 달라요', '🔑'); return; }
+        acct.pwHash = await dlPwHash(dlSession.id, nw);
+        acct.pwLen = nw.length;
+        await dlRegistryPublish(reg);
+        document.getElementById('pwCur').value = '';
+        document.getElementById('pwNew').value = '';
+        document.getElementById('pwNew2').value = '';
+        showToast('비밀번호를 바꿨어요', '🔑');
+      } catch (e) { showToast('바꾸지 못했어요. 네트워크를 확인해주세요', '⚠️'); }
+    }
+    const _origRenderAcctBox76 = dlRenderAccountBox;
+    dlRenderAccountBox = function () {
+      const r = _origRenderAcctBox76.apply(this, arguments);
+      try { dlRenderPwBox(); } catch (e) {}
+      return r;
+    };
+
+    /* ----------------------------------------------------
+       77. 계정 삭제 (2.9.48, 개발자 전용)
+       - 전체 계정 목록에서 삭제 (두 번 눌러 확정). 자리 연결도 함께 해제하고,
+         그 계정의 루틴 보관함은 비워서 같은 아이디로 재가입해도 옛 루틴이 되살아나지 않게 한다.
+       - 커플 데이터(일정·버킷 등)는 계정과 별개라 지워지지 않는다. 내 계정을 지우면 로그아웃된다.
+    ---------------------------------------------------- */
+    async function dlWipeAccountRoutines(acctId) {
+      try {
+        const seed = 'duolog-routines-v1-' + acctId;
+        const key = await deriveSyncKey(seed);
+        const topic = 'duolog/v1/' + (await sha256hex(seed)).slice(0, 40);
+        const payload = await dlAcctEncrypt(key, { list: [], tb: [] });
+        const clients = await dlAcctClients();
+        clients.forEach(c => { try { c.publish(topic, payload, { qos: 1, retain: true }); } catch (e) {} });
+      } catch (e) {}
+    }
+    async function dlDeleteAccount(btn) {
+      const id = btn.getAttribute('data-acct-del');
+      if (!id) return;
+      if (!btn.dataset.armed) {
+        btn.dataset.armed = '1';
+        btn.textContent = '정말 삭제할까요? 다시 누르면 삭제돼요';
+        btn.classList.add('bg-rose-500', 'text-white');
+        setTimeout(() => { if (btn.isConnected) { delete btn.dataset.armed; btn.textContent = '계정 삭제'; btn.classList.remove('bg-rose-500', 'text-white'); } }, 3000);
+        return;
+      }
+      btn.disabled = true; btn.textContent = '삭제 중…';
+      try {
+        const reg = await dlRegistryFetch();
+        const before = reg.accounts.length;
+        reg.accounts = reg.accounts.filter(a => a.id !== id);
+        if (reg.accounts.length === before) { showToast('계정을 찾지 못했어요', '⚠️'); btn.disabled = false; return; }
+        await dlRegistryPublish(reg);
+        await dlWipeAccountRoutines(id);
+        let unbound = false;
+        ['p1', 'p2'].forEach(k => { if (duoProfile[k] && duoProfile[k].account === id) { duoProfile[k].account = null; unbound = true; } });
+        if (unbound) persistData();
+        if (dlSession && dlSession.id === id) {
+          showToast('계정을 삭제했어요', '👋');
+          closeAccountsModal();
+          dlLogout();
+          return;
+        }
+        showToast('계정을 삭제했어요', '🗑️');
+        openAccountsModal();
+      } catch (e) { showToast('삭제하지 못했어요', '⚠️'); btn.disabled = false; }
+    }
+  
+    /* ----------------------------------------------------
+       78. 건의함 답글·처리 상태 (2.9.49)
+       - 상태: 접수/처리완료 배지, 개발자만 토글
+       - 답글: 개발자는 모든 글에, 작성자는 자기 글에 달 수 있음 (글쓴이도 답을 볼 수 있게)
+    ---------------------------------------------------- */
+    function dlSugExtraHtml(p, admin) {
+      const mine = dlSession && p.authorId === dlSession.id;
+      const done = p.status === 'done';
+      let h = '<div class="flex items-center gap-1.5 mt-2.5">' +
+        '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold ' + (done ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600') + '">' + (done ? '✅ 처리완료' : '🕐 접수') + '</span>' +
+        (admin ? '<button onclick="dlSugToggleStatus(\'' + p.id + '\')" class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold active:scale-95 transition">' + (done ? '다시 열기' : '처리완료로 표시') + '</button>' : '') +
+        '</div>';
+      const replies = Array.isArray(p.replies) ? p.replies : [];
+      if (replies.length) {
+        h += '<div class="mt-2.5 space-y-1.5 border-t border-gray-100 pt-2.5">' + replies.map(r =>
+          '<div class="flex gap-1.5"><span class="text-xs flex-shrink-0">' + (r.authorEmoji || '🙂') + '</span><div class="flex-1 min-w-0"><p class="text-[11px] text-gray-600 break-words whitespace-pre-wrap"><b>' + escapeHtml(r.authorName || '') + '</b> ' + escapeHtml(r.text) + '</p><p class="text-[9px] text-gray-300">' + (typeof commentTimeText === 'function' ? commentTimeText(r.ts) : '') + '</p></div></div>').join('') + '</div>';
+      }
+      if (admin || mine) {
+        h += '<div class="flex gap-1.5 mt-2.5"><input type="text" id="sugReply-' + p.id + '" placeholder="답글을 입력하세요" maxlength="300" class="flex-1 min-w-0 px-2.5 py-1.5 bg-white rounded-lg border border-gray-200 text-[11px] font-medium"><button onclick="dlSugReply(\'' + p.id + '\')" class="px-2.5 py-1.5 rounded-lg bg-gray-900 text-white text-[11px] font-bold active:scale-95 transition flex-shrink-0">등록</button></div>';
+      }
+      return h;
+    }
+    async function dlSugMutate(postId, fn) {
+      try {
+        const data = await dlSugFetch();
+        const post = data.posts.find(p => p.id === postId);
+        if (!post) { showToast('글을 찾지 못했어요', '⚠️'); return; }
+        fn(post);
+        await dlSugPublish(data);
+        dlSugPosts = data.posts;
+        dlSugRenderList();
+      } catch (e) { showToast('처리하지 못했어요', '⚠️'); }
+    }
+    function dlSugToggleStatus(postId) {
+      if (!dlIsAdmin()) return;
+      dlSugMutate(postId, post => { post.status = post.status === 'done' ? 'open' : 'done'; });
+    }
+    function dlSugReply(postId) {
+      const inp = document.getElementById('sugReply-' + postId);
+      if (!inp) return;
+      const text = inp.value.trim();
+      if (!text) { showToast('답글을 입력해주세요', '💬'); return; }
+      dlSugMutate(postId, post => {
+        if (!Array.isArray(post.replies)) post.replies = [];
+        post.replies.push({ id: 'sr-' + Date.now(), ts: Date.now(), authorId: dlSession ? dlSession.id : '', authorName: dlSession ? dlSession.name : '', authorEmoji: dlSession ? dlSession.emoji : '🙂', text: text });
+      });
+    }
+  
+    /* ----------------------------------------------------
+       79. 데이터 백업 (2.9.49)
+       - 내보내기: 일정·버킷·머니로드·루틴·카테고리·기념일을 JSON 파일로 저장
+         (앱에서 저장이 안 되면 아래 칸의 내용을 복사해 보관할 수 있게 함께 표시)
+       - 가져오기: id 기준 병합 — 같은 항목은 파일 내용으로, 없는 항목은 추가. 삭제 기록은 존중.
+         프로필 이름·자리 연결은 건드리지 않음 (기념일·시작일만 병합)
+    ---------------------------------------------------- */
+    function dlRenderDataBox() {
+      const box = document.getElementById('myDataBox');
+      if (!box) return;
+      if (!dlSession) { box.innerHTML = ''; return; }
+      box.innerHTML = '<p class="text-[11px] font-bold text-gray-500 mb-1.5">데이터 백업</p>' +
+        '<div class="flex gap-2">' +
+        '<button type="button" onclick="dlExportData()" class="flex-1 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold active:scale-95 transition">⬇️ 내보내기</button>' +
+        '<button type="button" onclick="document.getElementById(\'dlImportFile\').click()" class="flex-1 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-bold active:scale-95 transition">⬆️ 가져오기</button>' +
+        '<input type="file" id="dlImportFile" accept=".json,application/json" class="hidden" onchange="dlImportData(event)">' +
+        '</div>' +
+        '<p class="text-[10px] text-gray-300 mt-1">가져오면 같은 항목은 파일 내용으로 바뀌고, 없는 항목은 추가돼요.</p>' +
+        '<div id="dlExportFallback" class="hidden mt-2"><textarea id="dlExportText" readonly rows="4" class="w-full px-2.5 py-2 bg-gray-50 rounded-xl border border-gray-100 text-[10px] text-gray-500"></textarea>' +
+        '<button type="button" onclick="dlCopyExport()" class="w-full mt-1.5 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-[10px] font-bold active:scale-95 transition">백업 내용 복사하기 (파일 저장이 안 될 때)</button></div>';
+    }
+    function dlExportData() {
+      try {
+        const backup = {
+          app: 'DuoLog', version: (window.DL_VERSION ? window.DL_VERSION.name : ''), exportedAt: new Date().toISOString(),
+          data: {
+            items: items, categories: categories, buckets: buckets, money: moneySteps, routines: routines,
+            anniversaries: (duoProfile.anniversaries || []), startDate: duoProfile.startDate || null
+          }
+        };
+        const text = JSON.stringify(backup, null, 1);
+        const blob = new Blob([text], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const d = new Date();
+        a.href = url;
+        a.download = 'duolog-backup-' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '.json';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        const fb = document.getElementById('dlExportFallback');
+        const ta = document.getElementById('dlExportText');
+        if (fb && ta) { ta.value = text; fb.classList.remove('hidden'); }
+        showToast('백업 파일을 만들었어요', '💾');
+      } catch (e) { showToast('백업하지 못했어요', '⚠️'); }
+    }
+    function dlCopyExport() {
+      const ta = document.getElementById('dlExportText');
+      if (!ta) return;
+      ta.select();
+      try { document.execCommand('copy'); showToast('복사했어요', '📋'); }
+      catch (e) { showToast('길게 눌러 직접 복사해주세요', '📋'); }
+    }
+    function dlMergeById(local, remote, tbList) {
+      const tb = new Set(tbList || []);
+      const map = new Map();
+      (local || []).forEach(x => { if (x && x.id && !tb.has(x.id)) map.set(x.id, x); });
+      (remote || []).forEach(x => { if (x && x.id && !tb.has(x.id)) map.set(x.id, x); });
+      return Array.from(map.values());
+    }
+    function dlImportData(ev) {
+      const file = ev.target.files && ev.target.files[0];
+      ev.target.value = '';
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const obj = JSON.parse(String(reader.result || ''));
+          if (!obj || obj.app !== 'DuoLog' || !obj.data) { showToast('DuoLog 백업 파일이 아니에요', '⚠️'); return; }
+          const d = obj.data;
+          const tb = dlTombstones();
+          if (Array.isArray(d.items)) items = dlMergeById(items, d.items, tb.item);
+          if (Array.isArray(d.buckets)) buckets = dlMergeById(buckets, d.buckets, tb.bucket);
+          if (Array.isArray(d.money)) moneySteps = dlMergeById(moneySteps, d.money, tb.money);
+          if (Array.isArray(d.routines)) routines = dlMergeById(routines, d.routines, []);
+          if (Array.isArray(d.categories)) categories = dlMergeById(categories, d.categories, []);
+          if (Array.isArray(d.anniversaries)) {
+            const have = new Set((duoProfile.anniversaries || []).map(a => a.id));
+            (duoProfile.anniversaries = duoProfile.anniversaries || []).push(...d.anniversaries.filter(a => a && a.id && !have.has(a.id)));
+          }
+          if (!duoProfile.startDate && d.startDate) duoProfile.startDate = d.startDate;
+          persistData();
+          if (typeof renderAll === 'function') renderAll();
+          if (typeof renderBuckets === 'function') renderBuckets();
+          if (typeof renderMoney === 'function') renderMoney();
+          if (typeof renderRoutineChips === 'function') renderRoutineChips();
+          showToast('가져왔어요 — 일정 ' + items.length + '개 · 버킷 ' + buckets.length + '개 · 머니 ' + moneySteps.length + '스텝', '💾');
+        } catch (e) { showToast('파일을 읽지 못했어요', '⚠️'); }
+      };
+      reader.readAsText(file);
+    }
+    const _origRenderAcctBox79 = dlRenderAccountBox;
+    dlRenderAccountBox = function () {
+      const r = _origRenderAcctBox79.apply(this, arguments);
+      try { dlRenderDataBox(); } catch (e) {}
+      return r;
+    };
   </script>
 </body>
 </html>
