@@ -183,7 +183,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
 <body class="font-sans antialiased text-gray-800 flex justify-center min-h-screen">
 
   <!-- 메인 모바일 래퍼 (데스크톱에서는 스마트폰 뷰포트 크기로 중앙 정렬, 모바일에서는 100% 핏) -->
-  <div class="w-full max-w-md bg-white min-h-screen flex flex-col shadow-2xl relative overflow-hidden pb-24">
+  <div id="appRoot" class="w-full max-w-md bg-white min-h-screen flex flex-col shadow-2xl relative overflow-hidden pb-24">
     
     <!-- 1. 최상단 상태 & 커플 프로필 바 -->
     <header class="px-5 pt-6 pb-3 bg-white sticky top-0 z-20 border-b border-gray-100/80 backdrop-blur-md bg-white/90">
@@ -353,14 +353,14 @@ Check your Browserslist config to be sure that your targets are set up correctly
     </main>
 
     <!-- 플로팅 액션 버튼 (FAB) -->
-    <div class="fixed bottom-20 max-w-md w-full px-5 pointer-events-none flex justify-end z-20">
+    <div id="fabWrap" class="fixed bottom-20 max-w-md w-full px-5 pointer-events-none flex justify-end z-20">
       <button id="fabBtn" onclick="openNewItemModal()" class="pointer-events-auto w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-pink-500 text-white shadow-float flex items-center justify-center active:scale-90 transition-transform duration-200">
         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
       </button>
     </div>
 
     <!-- 4. 하단 네비게이션 바 -->
-    <nav class="fixed bottom-0 max-w-md w-full bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 py-2.5 z-20 flex justify-around items-center text-xs font-medium text-gray-400">
+    <nav id="bottomNav" class="fixed bottom-0 max-w-md w-full bg-white/95 backdrop-blur-md border-t border-gray-100 px-6 py-2.5 z-20 flex justify-around items-center text-xs font-medium text-gray-400">
       <button onclick="switchTab('schedule')" id="nav-schedule" class="flex flex-col items-center gap-1 text-indigo-600">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
         <span>일정 & 할일</span>
@@ -1043,8 +1043,15 @@ Check your Browserslist config to be sure that your targets are set up correctly
         const dayNum = d.getDate();
         const isToday = dateStr === formatDate(new Date());
 
-        // 해당 날짜에 일정이 있는지 체크 점(dot) 표시
-        const hasEvents = items.some(it => it.date === dateStr && dlOwnerVisible(it) && (selectedCategoryFilter === 'all' || it.categoryId === selectedCategoryFilter));
+        // 일정 점: 소유자 색 기준 — 동호 파랑·뱁새 분홍·함께 노랑 (2.9.28)
+        const dotOwners = { p1: false, p2: false, both: false };
+        items.forEach(it => { if (it.date === dateStr && dlOwnerVisible(it) && (selectedCategoryFilter === 'all' || it.categoryId === selectedCategoryFilter) && dotOwners[it.owner] !== undefined) dotOwners[it.owner] = true; });
+        let dotsHtml = '';
+        if (isToday && !isSelected) dotsHtml += '<span class="w-1.5 h-1.5 rounded-full border-2 border-indigo-600"></span>';
+        if (dotOwners.p1) dotsHtml += '<span class="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>';
+        if (dotOwners.p2) dotsHtml += '<span class="w-1.5 h-1.5 bg-pink-500 rounded-full"></span>';
+        if (dotOwners.both) dotsHtml += '<span class="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>';
+        const dotsRow = dotsHtml ? '<span class="flex items-center justify-center gap-[3px] mt-1">' + dotsHtml + '</span>' : '';
 
         const btn = document.createElement('button');
         btn.onclick = () => selectDate(dateStr);
@@ -1057,8 +1064,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         btn.innerHTML = `
           <span class="text-[11px] ${isSelected ? 'text-gray-300' : (d.getDay() === 0 ? 'text-rose-500' : 'text-gray-400')}">${dayName}</span>
           <span class="text-sm mt-0.5 ${isSelected ? 'text-white' : 'text-gray-800'} font-semibold">${dayNum}</span>
-          ${isToday && !isSelected ? '<span class="w-1 h-1 bg-indigo-600 rounded-full mt-1"></span>' : ''}
-          ${hasEvents && isSelected ? '<span class="w-1 h-1 bg-pink-400 rounded-full mt-1"></span>' : (hasEvents && !isToday ? '<span class="w-1 h-1 bg-gray-300 rounded-full mt-1"></span>' : '')}
+          ${dotsRow}
           ${(typeof dlSpecialDay === 'function' && dlSpecialDay(dateStr)) ? '<span class="text-[8px] leading-none mt-0.5">' + dlSpecialDay(dateStr).marker + '</span>' : ''}
         `;
         container.appendChild(btn);
@@ -3750,6 +3756,61 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', dlInitSwipe38);
     else dlInitSwipe38();
+  
+    /* ----------------------------------------------------
+       39. 태블릿 가로 2단 레이아웃 (2.9.27)
+       - 1024px 이상: 달력 섹션을 헤더에서 왼쪽 패널로 옮겨 고정하고, 일정 목록은 오른쪽에
+       - 그 아래 해상도: 달력 섹션을 헤더 안 원래 자리로 되돌림 (기존 폰 UX·내부 스크롤 유지)
+       - 일정 탭이 아니면 래퍼를 숨기고, 버킷/머니로드 탭은 넓은 화면에서 가운데 768px로
+    ---------------------------------------------------- */
+    (function () {
+      const style = document.createElement('style');
+      style.textContent = [
+        '#dlSplitWrap { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }',
+        '#dlCalPane { display: none; }',
+        '@media (min-width: 1024px) {',
+        '  #appRoot { max-width: 1440px; }',
+        '  #bottomNav, #fabWrap { max-width: 1440px; }',
+        '  #dlSplitWrap { flex-direction: row; }',
+        '  #dlCalPane { display: block; flex: 0 0 500px; border-right: 1px solid #f3f4f6; padding: 4px 20px 16px; overflow-y: auto; }',
+        '  #bucketMain, #moneyMain { align-self: center; width: min(768px, 100%); }',
+        '}'
+      ].join('\n');
+      document.head.appendChild(style);
+    })();
+    function dlInitSplit39() {
+      const cal = document.getElementById('calendarSection');
+      const main = document.getElementById('scheduleMain');
+      if (!cal || !main || document.getElementById('dlSplitWrap')) return;
+      if (!window.matchMedia) return;
+      const header = cal.parentNode;
+      const marker = document.createComment('dl-cal-home');
+      header.insertBefore(marker, cal);
+      const wrap = document.createElement('div');
+      wrap.id = 'dlSplitWrap';
+      const pane = document.createElement('div');
+      pane.id = 'dlCalPane';
+      wrap.appendChild(pane);
+      main.parentNode.insertBefore(wrap, main);
+      wrap.appendChild(main);
+      const mq = window.matchMedia('(min-width: 1024px)');
+      function syncVis() {
+        wrap.style.display = main.classList.contains('hidden') ? 'none' : '';
+        pane.style.display = cal.classList.contains('hidden') ? 'none' : '';
+      }
+      function apply() {
+        if (mq.matches) { if (cal.parentNode !== pane) pane.appendChild(cal); }
+        else if (cal.parentNode !== header) header.insertBefore(cal, marker);
+        syncVis();
+      }
+      if (mq.addEventListener) mq.addEventListener('change', apply);
+      else if (mq.addListener) mq.addListener(apply);
+      new MutationObserver(syncVis).observe(main, { attributes: true, attributeFilter: ['class'] });
+      new MutationObserver(syncVis).observe(cal, { attributes: true, attributeFilter: ['class'] });
+      apply();
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', dlInitSplit39);
+    else dlInitSplit39();
   </script>
 </body>
 </html>
