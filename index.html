@@ -598,7 +598,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         <h3 class="text-base font-bold text-gray-900">자주 쓰는 루틴 편집</h3>
         <button onclick="closeRoutineManager()" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
       </div>
-      <p class="text-xs text-gray-500 mb-3">운동&루틴 탭에서 한 번에 추가할 수 있는 루틴 목록이에요. 이 폰에만 저장되고, 각자 자기 폰에서 따로 편집해 써요.</p>
+      <p class="text-xs text-gray-500 mb-3">운동&루틴 탭에서 한 번에 추가할 수 있는 루틴 목록이에요. 이 폰에만 저장되고, 각자 자기 폰에서 따로 편집해 써요. 루틴을 길게 눌러 드래그하면 순서도 바꿀 수 있어요.</p>
       <div id="routineList" class="space-y-2 mb-4"></div>
       <form onsubmit="handleSaveRoutine(event)" class="space-y-2 p-3 bg-gray-50 rounded-2xl border border-gray-100">
         <input type="hidden" id="routineEditId">
@@ -1877,10 +1877,11 @@ Check your Browserslist config to be sure that your targets are set up correctly
         box.innerHTML = '<p class="text-[11px] text-gray-400 text-center py-2">등록된 루틴이 없어요.</p>';
         return;
       }
-      box.innerHTML = routines.map(r => {
+      box.innerHTML = routines.map((r, i) => {
         const cat = categories.find(c => c.id === r.categoryId) || { emoji: '📌', name: '일반' };
         const meta = routineOwnerName(r.owner) + ' · ' + cat.name + (r.time ? ' · ' + r.time : '');
-        return '<div class="flex items-center gap-2 p-2.5 bg-white rounded-2xl border border-gray-100">' +
+        return '<div class="routine-row flex items-center gap-2 p-2.5 bg-white rounded-2xl border border-gray-100" data-idx="' + i + '" style="-webkit-user-select:none;-webkit-touch-callout:none;">' +
+          '<span class="text-gray-300 text-base px-0.5">☰</span>' +
           '<span class="text-base">' + (cat.emoji || '💪') + '</span>' +
           '<div class="flex-1 min-w-0"><p class="text-xs font-bold text-gray-800 truncate">' + escapeHtml(r.title) + '</p>' +
           '<p class="text-[10px] text-gray-400">' + escapeHtml(meta) + '</p></div>' +
@@ -2322,6 +2323,103 @@ Check your Browserslist config to be sure that your targets are set up correctly
       renderCoupleDday();
       updateAnnivBanner();
     });
+  
+    /* ----------------------------------------------------
+       18. 루틴 순서 변경 (길게 눌러 드래그)
+    ---------------------------------------------------- */
+    (function initRoutineDrag() {
+      const list = document.getElementById('routineList');
+      if (!list) return;
+      list.addEventListener('pointerdown', e => {
+        const row = e.target.closest('.routine-row');
+        if (!row || e.target.closest('button')) return;
+        const idx = parseInt(row.dataset.idx);
+        if (isNaN(idx)) return;
+        const startY = e.clientY;
+        const pointerId = e.pointerId;
+        let started = false;
+        const timer = setTimeout(() => {
+          started = true;
+          startRoutineDrag(row, idx, startY, pointerId);
+        }, 300);
+        const cancel = () => {
+          clearTimeout(timer);
+          document.removeEventListener('pointermove', moveCheck);
+          document.removeEventListener('pointerup', cancel);
+          document.removeEventListener('pointercancel', cancel);
+        };
+        const moveCheck = ev => {
+          if (!started && Math.abs(ev.clientY - startY) > 10) cancel();
+          if (started) {
+            document.removeEventListener('pointermove', moveCheck);
+            document.removeEventListener('pointerup', cancel);
+            document.removeEventListener('pointercancel', cancel);
+          }
+        };
+        document.addEventListener('pointermove', moveCheck);
+        document.addEventListener('pointerup', cancel);
+        document.addEventListener('pointercancel', cancel);
+      });
+      list.addEventListener('contextmenu', e => {
+        if (e.target.closest('.routine-row')) e.preventDefault();
+      });
+    })();
+
+    function startRoutineDrag(row, idx, startY, pointerId) {
+      const rows = Array.from(document.querySelectorAll('.routine-row'));
+      const step = row.offsetHeight + 8;
+      let curIdx = idx;
+      row.style.position = 'relative';
+      row.style.zIndex = '10';
+      row.style.boxShadow = '0 10px 24px rgba(0,0,0,0.18)';
+      row.style.touchAction = 'none';
+      row.style.background = '#EEF2FF';
+      try { row.setPointerCapture(pointerId); } catch (err) {}
+      if (navigator.vibrate) { try { navigator.vibrate(20); } catch (err) {} }
+
+      const onMove = ev => {
+        ev.preventDefault();
+        const dy = ev.clientY - startY;
+        row.style.transform = 'translateY(' + dy + 'px)';
+        const target = Math.max(0, Math.min(rows.length - 1, idx + Math.round(dy / step)));
+        if (target !== curIdx) {
+          curIdx = target;
+          rows.forEach((r, i) => {
+            if (r === row) return;
+            let t = 0;
+            if (idx < target && i > idx && i <= target) t = -step;
+            else if (idx > target && i < idx && i >= target) t = step;
+            r.style.transition = 'transform 0.15s';
+            r.style.transform = t ? 'translateY(' + t + 'px)' : '';
+          });
+        }
+      };
+      const onUp = () => {
+        row.removeEventListener('pointermove', onMove);
+        row.removeEventListener('pointerup', onUp);
+        row.removeEventListener('pointercancel', onUp);
+        rows.forEach(r => {
+          r.style.transform = '';
+          r.style.transition = '';
+          r.style.boxShadow = '';
+          r.style.zIndex = '';
+          r.style.position = '';
+          r.style.touchAction = '';
+          r.style.background = '';
+        });
+        if (curIdx !== idx) {
+          const moved = routines.splice(idx, 1)[0];
+          routines.splice(curIdx, 0, moved);
+          persistData();
+          renderRoutineChips();
+          showToast('루틴 순서를 바꿨어요', '☰');
+        }
+        renderRoutineList();
+      };
+      row.addEventListener('pointermove', onMove);
+      row.addEventListener('pointerup', onUp);
+      row.addEventListener('pointercancel', onUp);
+    }
   </script>
 </body>
 </html>
