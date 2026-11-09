@@ -1770,8 +1770,10 @@ Check your Browserslist config to be sure that your targets are set up correctly
         const holName = (typeof getHoliday === 'function') ? getHoliday(ds) : null;
         let dots = '';
         dayItems.slice(0, 3).forEach(it => {
-          const col = isSel ? 'rgba(255,255,255,0.9)' : (it.owner === 'p1' ? '#6366F1' : it.owner === 'p2' ? '#EC4899' : '#8B5CF6');
-          dots += '<span style="background:' + col + '" class="w-1.5 h-1.5 rounded-full inline-block"></span>';
+          const cat = categories.find(c => c.id === it.categoryId);
+          const emo = cat ? cat.emoji : '📌';
+          const tint = isSel ? 'rgba(255,255,255,0.28)' : (it.owner === 'p1' ? '#E0E7FF' : it.owner === 'p2' ? '#FCE7F3' : '#EDE9FE');
+          dots += '<span style="background:' + tint + '" class="w-3.5 h-3.5 rounded-md inline-flex items-center justify-center text-[9px] leading-none">' + emo + '</span>';
         });
         if (dayItems.length > 3) dots += '<span class="text-[9px] font-semibold ' + (isSel ? 'text-white/80' : 'text-gray-400') + '">+' + (dayItems.length - 3) + '</span>';
         const numCls = isSel ? 'text-white' : (holName ? (other ? 'text-red-300' : 'text-red-500') : (other ? 'text-gray-300' : (dow === 0 ? 'text-red-500' : (dow === 6 ? 'text-blue-500' : 'text-gray-700'))));
@@ -1780,7 +1782,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
           (isSel ? 'bg-indigo-600 shadow-sm' : 'hover:bg-gray-50') + '">' +
           '<span class="text-xs font-semibold ' + numCls + todayCls + '">' + d.getDate() + '</span>' +
           '<span class="block w-full max-w-[46px] truncate text-center text-[8px] leading-tight h-3 ' + (holName ? (isSel ? 'text-red-200' : 'text-red-400') : '') + '">' + (holName || '') + '</span>' +
-          '<span class="flex items-center gap-0.5 mt-1 h-2">' + dots + '</span></button>';
+          '<span class="flex items-center justify-center gap-0.5 mt-0.5 h-3.5">' + dots + '</span></button>';
       }
       grid.innerHTML = out;
     }
