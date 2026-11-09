@@ -1388,23 +1388,6 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
 
     // 담당자 전환 (나 -> 상대방 -> 둘 다 -> 나) 간편 이동 기능
-    function quickMoveItem(id) {
-      const it = items.find(x => x.id === id);
-      if (!it) return;
-
-      if (it.owner === 'p1') {
-        it.owner = 'p2';
-        showToast(`${duoProfile.p2.name} 님에게 일정을 넘겼어요!`, duoProfile.p2.emoji);
-      } else if (it.owner === 'p2') {
-        it.owner = 'both';
-        showToast('둘 다 함께하는 일정으로 변경되었어요!', '🧡');
-      } else {
-        it.owner = 'p1';
-        showToast(`${duoProfile.p1.name} 님의 일정으로 변경되었어요!`, duoProfile.p1.emoji);
-      }
-      persistData();
-      renderItems();
-    }
 
     function deleteItem(id) {
       items = items.filter(x => x.id !== id);
@@ -4464,12 +4447,6 @@ Check your Browserslist config to be sure that your targets are set up correctly
       if (item && !dlCanModifyItem(item)) { dlBlockToast(); return; }
       return _origDeleteItem51.apply(this, arguments);
     };
-    const _origQuickMove51 = quickMoveItem;
-    quickMoveItem = function (id) {
-      const item = items.find(i => i.id === id);
-      if (item && !dlCanModifyItem(item)) { dlBlockToast(); return; }
-      return _origQuickMove51.apply(this, arguments);
-    };
     const _origQuickRoutine51 = quickAddRoutine;
     quickAddRoutine = function (id) {
       const r = routines.find(x => x.id === id);
@@ -4870,13 +4847,15 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const img = new Image();
       img.onload = () => {
         try {
-          const max = 720;
+          const max = 560;
           const scale = Math.min(1, max / Math.max(img.width, img.height));
           const c = document.createElement('canvas');
           c.width = Math.max(1, Math.round(img.width * scale));
           c.height = Math.max(1, Math.round(img.height * scale));
           c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-          dlSugPhoto = c.toDataURL('image/jpeg', 0.72);
+          dlSugPhoto = c.toDataURL('image/jpeg', 0.68);
+          let q = 0.68;
+          while (dlSugPhoto.length > 160000 && q > 0.32) { q -= 0.12; dlSugPhoto = c.toDataURL('image/jpeg', Math.max(0.3, q)); }
           const prev = document.getElementById('sugPhotoPreview');
           prev.src = dlSugPhoto; prev.classList.remove('hidden');
           document.getElementById('sugPhotoName').innerText = file.name || '사진 첨부됨';
@@ -5230,6 +5209,44 @@ Check your Browserslist config to be sure that your targets are set up correctly
       before.forEach(x => { if (!items.find(i => i.id === x)) dlItemTbAdd(x); });
       return r;
     };
+  
+    /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
+    window.DL_VERSION = { name: '2.9.47', code: 57 };
+    (function dlShowVersion() {
+      const txt = 'DuoLog v' + window.DL_VERSION.name;
+      const card = document.querySelector('#modalProfile > div');
+      if (card && !document.getElementById('dlVersionLine')) {
+        const p = document.createElement('p');
+        p.id = 'dlVersionLine';
+        p.className = 'text-center text-[11px] text-gray-300 mt-5';
+        p.textContent = txt;
+        card.appendChild(p);
+      }
+      const gate = document.getElementById('authGate');
+      if (gate && !document.getElementById('dlVersionGate')) {
+        const p = document.createElement('p');
+        p.id = 'dlVersionGate';
+        p.className = 'absolute bottom-4 inset-x-0 text-center text-[11px] text-gray-400 pointer-events-none';
+        p.textContent = txt;
+        gate.appendChild(p);
+      }
+    })();
+  
+    /* 71~73. 입력 제한·이모지 완화·배경 스크롤 고정 (2.9.47) */
+    (function dlMisc47() {
+      const limits = { itemTitle: 100, itemMemo: 500, commentInput: 300, bucketTitle: 100, bucketMemo: 500, sugTitle: 100, sugBody: 2000, routineTitle: 50, annivTitle: 50, newCategoryName: 20, profP1Name: 20, profP2Name: 20, regName: 20 };
+      Object.keys(limits).forEach(id => { const el = document.getElementById(id); if (el) el.maxLength = limits[id]; });
+      document.querySelectorAll('input[maxlength="2"]').forEach(el => { el.maxLength = 10; });
+      const overlays = Array.from(document.querySelectorAll('div[id^="modal"]')).filter(m => m.classList.contains('fixed') && m.classList.contains('inset-0'));
+      const lock = () => {
+        const any = overlays.some(m => !m.classList.contains('pointer-events-none'));
+        document.body.style.overflow = any ? 'hidden' : '';
+        document.documentElement.style.overflow = any ? 'hidden' : '';
+      };
+      const mo = new MutationObserver(lock);
+      overlays.forEach(m => mo.observe(m, { attributes: true, attributeFilter: ['class'] }));
+      lock();
+    })();
   </script>
 </body>
 </html>
