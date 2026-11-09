@@ -128,7 +128,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
               p1Soft: '#EEF2FF',
               p2: '#EC4899', // Pink/Rose (파트너 2 / 상대방)
               p2Soft: '#FDF2F8',
-              both: '#8B5CF6', // Purple (함께)
+              both: '#F59E0B', // Amber (함께)
               bothSoft: '#F5F3FF',
               surface: '#FAF7F5',
             }
@@ -242,7 +242,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
           <span class="text-red-400">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="text-blue-400">토</span>
         </div>
         <div id="monthGrid" class="grid grid-cols-7 gap-1"></div>
-        <p class="text-[10px] text-gray-300 mt-1.5 text-right pr-1">칩은 그날 일정의 종류 · 배경 파랑=동호, 분홍=뱁새, 주황=함께 · 빨간 날짜는 공휴일</p>
+        <p class="text-[10px] text-gray-300 mt-1.5 text-right pr-1">칩은 그날 일정의 종류 · 테두리 파랑=동호, 분홍=뱁새, 주황=함께 · 빨간 날짜는 공휴일</p>
       </div>
       </div>
     </header>
@@ -316,6 +316,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         <button id="bucketSegTodo" onclick="setBucketView('todo')" class="flex-1 py-1.5 rounded-xl bg-white shadow-sm text-gray-900 transition">앞으로 할 버킷</button>
         <button id="bucketSegDone" onclick="setBucketView('done')" class="flex-1 py-1.5 rounded-xl text-gray-500 transition">완료한 버킷</button>
       </div>
+      <div id="bucketKindRow" class="flex flex-wrap gap-1.5 mb-4"></div>
       <section id="bucketList" class="space-y-3"></section>
       <div id="bucketEmpty" class="hidden flex-col items-center justify-center py-14 text-center">
         <div class="w-16 h-16 rounded-3xl bg-gray-50 flex items-center justify-center text-3xl mb-3 border border-gray-100">✨</div>
@@ -753,6 +754,15 @@ Check your Browserslist config to be sure that your targets are set up correctly
         <div>
           <label class="block text-xs font-semibold text-gray-500 mb-1.5">메모 (선택)</label>
           <textarea id="bucketMemo" rows="2" placeholder="같이 적어둘 내용이 있으면" class="w-full px-3.5 py-2.5 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 resize-none"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1.5">분류</label>
+          <select id="bucketKind" class="w-full px-3.5 py-2.5 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+            <option value="place">🌍 가고 싶은 곳</option>
+            <option value="food">🍔 먹고 싶은 것</option>
+            <option value="do">🎯 하고 싶은 것</option>
+            <option value="etc">✨ 기타</option>
+          </select>
         </div>
         <button type="submit" class="w-full py-3 rounded-2xl bg-indigo-600 text-white text-sm font-bold active:scale-[0.98] transition">저장하기</button>
         <button type="button" id="bucketDeleteBtn" onclick="deleteBucketFromModal()" class="hidden w-full py-2.5 rounded-2xl bg-rose-50 text-rose-500 text-sm font-semibold active:scale-[0.98] transition">삭제하기</button>
@@ -1835,8 +1845,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
         dayItems.slice(0, 3).forEach(it => {
           const cat = categories.find(c => c.id === it.categoryId);
           const emo = cat ? cat.emoji : '📌';
-          const tint = isSel ? 'rgba(255,255,255,0.28)' : (it.owner === 'p1' ? '#E0E7FF' : it.owner === 'p2' ? '#FCE7F3' : '#FEF3C7');
-          dots += '<span style="background:' + tint + '" class="w-3.5 h-3.5 rounded-md inline-flex items-center justify-center text-[9px] leading-none">' + emo + '</span>';
+          const tint = isSel ? 'rgba(255,255,255,0.28)' : (it.owner === 'p1' ? '#C7D2FE' : it.owner === 'p2' ? '#FBCFE8' : '#FDE68A');
+          const ring = isSel ? 'rgba(255,255,255,0.95)' : (it.owner === 'p1' ? '#6366F1' : it.owner === 'p2' ? '#EC4899' : '#D97706');
+          dots += '<span style="background:' + tint + ';border:1.5px solid ' + ring + '" class="w-3.5 h-3.5 rounded-md inline-flex items-center justify-center text-[9px] leading-none">' + emo + '</span>';
         });
         if (dayItems.length > 3) dots += '<span class="text-[9px] font-semibold ' + (isSel ? 'text-white/80' : 'text-gray-400') + '">+' + (dayItems.length - 3) + '</span>';
         const numCls = isSel ? 'text-white' : (holName ? (other ? 'text-red-300' : 'text-red-500') : (other ? 'text-gray-300' : (dow === 0 ? 'text-red-500' : (dow === 6 ? 'text-blue-500' : 'text-gray-700'))));
@@ -2040,7 +2051,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       }
       box.innerHTML = routines.map(r => {
         const cat = categories.find(c => c.id === r.categoryId) || { emoji: '💪' };
-        const dot = r.owner === 'p1' ? '#6366F1' : r.owner === 'p2' ? '#EC4899' : '#8B5CF6';
+        const dot = r.owner === 'p1' ? '#6366F1' : r.owner === 'p2' ? '#EC4899' : '#F59E0B';
         return '<button onclick="quickAddRoutine(\'' + r.id + '\')" class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-white border border-gray-200 shadow-sm text-xs font-semibold text-gray-700 active:scale-95 transition">' +
           '<span>' + (cat.emoji || '💪') + '</span>' + escapeHtml(r.title) +
           '<span class="w-1.5 h-1.5 rounded-full" style="background:' + dot + '"></span></button>';
@@ -2732,7 +2743,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const filter = (typeof selectedCategoryFilter !== 'undefined') ? selectedCategoryFilter : 'all';
       const chipHtml = r => {
         const cat = categories.find(c => c.id === r.categoryId) || { emoji: '💪' };
-        const dot = r.owner === 'p1' ? '#6366F1' : r.owner === 'p2' ? '#EC4899' : '#8B5CF6';
+        const dot = r.owner === 'p1' ? '#6366F1' : r.owner === 'p2' ? '#EC4899' : '#F59E0B';
         return '<button data-routine-id="' + r.id + '" class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-white border border-gray-200 shadow-sm text-xs font-semibold text-gray-700 active:scale-95 transition">' +
           '<span>' + (cat.emoji || '💪') + '</span>' + escapeHtml(r.title) +
           '<span class="w-1.5 h-1.5 rounded-full" style="background:' + dot + '"></span></button>';
@@ -2870,7 +2881,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const filter = (typeof selectedCategoryFilter !== 'undefined') ? selectedCategoryFilter : 'all';
       const chipHtml = r => {
         const cat = categories.find(c => c.id === r.categoryId) || { emoji: '💪' };
-        const dot = r.owner === 'p1' ? '#6366F1' : r.owner === 'p2' ? '#EC4899' : '#8B5CF6';
+        const dot = r.owner === 'p1' ? '#6366F1' : r.owner === 'p2' ? '#EC4899' : '#F59E0B';
         return '<button data-routine-id="' + r.id + '" class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-white border border-gray-200 shadow-sm text-xs font-semibold text-gray-700 active:scale-95 transition">' +
           '<span>' + (cat.emoji || '💪') + '</span>' + escapeHtml(r.title) +
           '<span class="w-1.5 h-1.5 rounded-full" style="background:' + dot + '"></span></button>';
@@ -3134,6 +3145,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
           '<button onclick="toggleBucketDone(\'' + b.id + '\')" class="mt-0.5 w-6 h-6 flex-shrink-0 rounded-full border-2 flex items-center justify-center text-xs font-bold ' + checkCls + '">✓</button>' +
           '<div class="flex-1 min-w-0 cursor-pointer" onclick="openBucketModal(\'' + b.id + '\')">' +
           '<p class="text-sm font-bold ' + (b.done ? 'text-gray-400 line-through' : 'text-gray-900') + '">' + escapeHtml(b.title) + '</p>' +
+          '<p class="mt-1.5"><span class="inline-block px-1.5 py-0.5 rounded-md bg-violet-50 text-violet-500 text-[10px] font-bold">' + dlBucketKindEmoji(b) + ' ' + dlBucketKindLabel(b) + '</span></p>' +
           (b.memo ? '<p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">' + escapeHtml(b.memo) + '</p>' : '') + doneInfo +
           '</div></div>';
       }).join('');
@@ -3148,6 +3160,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       document.getElementById('modalBucketTitle').innerText = b ? '버킷 편집' : '버킷 추가';
       document.getElementById('bucketTitle').value = b ? b.title : '';
       document.getElementById('bucketMemo').value = b ? (b.memo || '') : '';
+      const kSel = document.getElementById('bucketKind');
+      if (kSel) kSel.value = b ? dlBucketKindOf(b) : (typeof bucketKindFilter !== 'undefined' && bucketKindFilter !== 'all' ? bucketKindFilter : 'do');
       document.getElementById('bucketDeleteBtn').classList.toggle('hidden', !b);
       modal.classList.remove('opacity-0', 'pointer-events-none');
       setTimeout(() => { content.classList.remove('translate-y-full'); }, 10);
@@ -3166,10 +3180,10 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const id = document.getElementById('bucketId').value;
       if (id) {
         const b = buckets.find(x => x.id === id);
-        if (b) { b.title = title; b.memo = memo; }
+        if (b) { b.title = title; b.memo = memo; const kEl = document.getElementById('bucketKind'); if (kEl) b.kind = kEl.value; }
         showToast('버킷이 수정되었습니다!', '✏️');
       } else {
-        buckets.unshift({ id: 'bk-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), title: title, memo: memo, done: false, createdAt: Date.now(), doneAt: null });
+        buckets.unshift({ id: 'bk-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), title: title, memo: memo, kind: (document.getElementById('bucketKind') || {}).value || 'do', done: false, createdAt: Date.now(), doneAt: null });
         showToast('버킷이 추가되었습니다!', '✨');
       }
       persistData();
@@ -3410,6 +3424,64 @@ Check your Browserslist config to be sure that your targets are set up correctly
       if (typeof renderMoney === 'function') renderMoney();
     };
     document.addEventListener('DOMContentLoaded', () => { if (typeof renderMoney === 'function') renderMoney(); });
+  
+    /* ----------------------------------------------------
+       30. 버킷 분류 + 부팅 데이터 보호 (2.9.20)
+       - 버킷 분류: place(가고 싶은 곳)·food(먹고 싶은 것)·do(하고 싶은 것)·etc(기타), 분류 없는 기존 버킷은 do로 취급
+       - 부팅 버그 수정: document 레벨 DOMContentLoaded 핸들러(버킷 정규화)가 window 핸들러(데이터 로드)보다
+         먼저 실행돼, 로드 전 기본값 상태로 persistData가 불려 저장 데이터(특히 동기화 대상이 아닌 루틴)를
+         기본값으로 덮어쓰던 문제 → 로드 완료 전까지 persistData는 기존 저장값을 그대로 보존한다
+    ---------------------------------------------------- */
+    const BUCKET_KINDS30 = [
+      { id: 'all', label: '전체', emoji: '✨' },
+      { id: 'place', label: '가고 싶은 곳', emoji: '🌍' },
+      { id: 'food', label: '먹고 싶은 것', emoji: '🍔' },
+      { id: 'do', label: '하고 싶은 것', emoji: '🎯' },
+      { id: 'etc', label: '기타', emoji: '📌' }
+    ];
+    let bucketKindFilter = 'all';
+    function dlBucketKindOf(b) { return b && ['place', 'food', 'do', 'etc'].indexOf(b.kind) >= 0 ? b.kind : 'do'; }
+    function dlBucketKindMeta(b) { const id = dlBucketKindOf(b); return BUCKET_KINDS30.find(k => k.id === id) || BUCKET_KINDS30[3]; }
+    function dlBucketKindEmoji(b) { return dlBucketKindMeta(b).emoji; }
+    function dlBucketKindLabel(b) { return dlBucketKindMeta(b).label; }
+    function renderBucketKindChips() {
+      const row = document.getElementById('bucketKindRow');
+      if (!row) return;
+      row.innerHTML = BUCKET_KINDS30.map(k => {
+        const n = k.id === 'all' ? buckets.length : buckets.filter(b => dlBucketKindOf(b) === k.id).length;
+        const on = bucketKindFilter === k.id;
+        return '<button onclick="setBucketKindFilter(\'' + k.id + '\')" class="px-2.5 py-1.5 rounded-full text-[11px] font-semibold border transition active:scale-95 ' + (on ? 'bg-violet-500 border-violet-500 text-white' : 'bg-white border-gray-200 text-gray-500') + '">' + k.emoji + ' ' + k.label + ' · ' + n + '</button>';
+      }).join('');
+    }
+    function setBucketKindFilter(id) { bucketKindFilter = id; renderBuckets(); }
+    const _origRenderBuckets30 = renderBuckets;
+    renderBuckets = function () {
+      if (bucketKindFilter === 'all') { _origRenderBuckets30(); renderBucketKindChips(); return; }
+      const allBuckets30 = buckets;
+      buckets = allBuckets30.filter(b => dlBucketKindOf(b) === bucketKindFilter);
+      try { _origRenderBuckets30(); } finally { buckets = allBuckets30; }
+      renderBucketKindChips();
+    };
+
+    window.__dlLoaded30 = false;
+    const DL_STORE_KEYS30 = ['duolog_items', 'duolog_profile', 'duolog_categories', 'duolog_buckets', 'duolog_money', 'duolog_routines'];
+    const _pdBeforeLoad30 = persistData;
+    persistData = function () {
+      if (window.__dlLoaded30) return _pdBeforeLoad30.apply(this, arguments);
+      const snap30 = {};
+      DL_STORE_KEYS30.forEach(k => { try { snap30[k] = localStorage.getItem(k); } catch (e) { snap30[k] = null; } });
+      const r30 = _pdBeforeLoad30.apply(this, arguments);
+      DL_STORE_KEYS30.forEach(k => { try { if (snap30[k] !== null) localStorage.setItem(k, snap30[k]); else localStorage.removeItem(k); } catch (e) {} });
+      return r30;
+    };
+    const _lsBeforeLoad30 = loadSavedData;
+    loadSavedData = function () {
+      const r30 = _lsBeforeLoad30.apply(this, arguments);
+      window.__dlLoaded30 = true;
+      try { normalizeBuckets(); } catch (e) {}
+      return r30;
+    };
+    window.addEventListener('DOMContentLoaded', () => { window.__dlLoaded30 = true; });
   </script>
 </body>
 </html>
