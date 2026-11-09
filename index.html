@@ -1957,21 +1957,21 @@ Check your Browserslist config to be sure that your targets are set up correctly
         const msDays = (typeof dlMilestone === 'function') ? dlMilestone(ds) : 0;
         const spDay = (typeof dlSpecialDay === 'function') ? dlSpecialDay(ds) : null;
         let dots = '';
-        dayItems.slice(0, 3).forEach(it => {
+        dayItems.slice(0, dayItems.length > 4 ? 3 : 4).forEach(it => {
           const cat = categories.find(c => c.id === it.categoryId);
           const emo = cat ? cat.emoji : '📌';
           const tint = isSel ? '#ffffff' : (it.owner === 'p1' ? '#C7D2FE' : it.owner === 'p2' ? '#FBCFE8' : '#FDE68A');
           const ring = it.owner === 'p1' ? '#6366F1' : it.owner === 'p2' ? '#EC4899' : '#D97706';
           dots += '<span style="background:' + tint + ';border:' + (isSel ? '2px' : '1.5px') + ' solid ' + ring + '" class="w-3.5 h-3.5 shrink-0 overflow-hidden rounded-md inline-flex items-center justify-center text-[8px] leading-none">' + emo + '</span>';
         });
-        if (dayItems.length > 3) dots += '<span class="text-[9px] font-semibold text-gray-400">+' + (dayItems.length - 3) + '</span>';
+        if (dayItems.length > 4) dots += '<span style="background:#F3F4F6;color:#6B7280;border:1.5px solid #E5E7EB" class="w-3.5 h-3.5 shrink-0 rounded-md inline-flex items-center justify-center text-[8px] font-bold leading-none">+' + (dayItems.length - 3) + '</span>';
         const numCls = isSel ? 'text-indigo-600' : (holName ? (other ? 'text-red-300' : 'text-red-500') : (other ? 'text-gray-300' : (dow === 0 ? 'text-red-500' : (dow === 6 ? 'text-blue-500' : 'text-gray-700'))));
         const todayCls = (isToday && !isSel) ? ' underline decoration-2 decoration-indigo-400 underline-offset-2' : '';
         out += '<button onclick="onMonthDayClick(\'' + ds + '\')" class="flex flex-col items-center py-1.5 rounded-xl ' +
           (isSel ? 'bg-white shadow-sm ring-2 ring-inset ring-indigo-600' : 'hover:bg-gray-50') + '">' +
           '<span class="text-xs font-semibold ' + numCls + todayCls + '">' + d.getDate() + '</span>' +
           '<span class="block w-full max-w-[46px] truncate text-center text-[8px] leading-tight h-3 ' + (spDay ? spDay.cls : (holName ? 'text-red-400' : '')) + '">' + (spDay ? spDay.text : (holName || '')) + '</span>' +
-          '<span class="flex items-center justify-center gap-0.5 mt-0.5 h-3.5">' + dots + '</span></button>';
+          '<span class="flex flex-wrap items-center justify-center gap-0.5 mt-0.5 w-[32px] min-h-3.5">' + dots + '</span></button>';
       }
       grid.innerHTML = out;
     }
@@ -4522,17 +4522,17 @@ Check your Browserslist config to be sure that your targets are set up correctly
       b.style.display = n ? 'flex' : 'none';
     }
     function dlFeedIcon(t) {
-      return { comment: '💬', cheer: '💌', add: '📌', complete: '✅', bucket: '🧺', bucketdone: '🎉', money: '💰', moneydone: '🎊' }[t] || '🔔';
+      return { comment: '💬', cheer: '💌', add: '📌', complete: '✅', bucket: '🧺', bucketdone: '🎉', money: '💰', moneydone: '🎊', suggest: '📮' }[t] || '🔔';
     }
     function renderNotifs() {
       const box = document.getElementById('notifList');
       if (!box) return;
       const rt = dlFeedReadTs(), me = dlMySlot();
-      if (!dlFeed.length) {
+      if (!dlFeed.filter(f => f.type !== 'suggest' || dlIsAdmin()).length) {
         box.innerHTML = '<p class="text-xs text-gray-400 text-center py-8">아직 알림이 없어요.</p>';
         return;
       }
-      box.innerHTML = dlFeed.slice(0, 60).map(f => {
+      box.innerHTML = dlFeed.filter(f => f.type !== 'suggest' || dlIsAdmin()).slice(0, 60).map(f => {
         const p = duoProfile[f.actor] || { name: f.actor, emoji: '👤' };
         const unread = f.actor !== me && f.ts > rt;
         return '<div class="flex items-start gap-2.5 rounded-2xl px-3 py-2.5 ' + (unread ? 'bg-indigo-50/70' : 'bg-gray-50') + '">' +
@@ -5215,7 +5215,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.49', code: 59 };
+    window.DL_VERSION = { name: '2.9.50', code: 60 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -5487,6 +5487,21 @@ Check your Browserslist config to be sure that your targets are set up correctly
     dlRenderAccountBox = function () {
       const r = _origRenderAcctBox79.apply(this, arguments);
       try { dlRenderDataBox(); } catch (e) {}
+      return r;
+    };
+  
+    // 건의함 새 글이 등록되면 개발자(동호) 벨 알림에만 뜨도록 피드에 남긴다 (제목·내용은 넣지 않음)
+    const _origSugSubmit81 = dlSugSubmit;
+    dlSugSubmit = async function () {
+      const tEl = document.getElementById('sugTitle');
+      const had = !!(tEl && tEl.value.trim());
+      const r = await _origSugSubmit81.apply(this, arguments);
+      try {
+        if (had && tEl && tEl.value === '' && typeof dlIsAdmin === 'function' && !dlIsAdmin() && typeof dlFeedPush === 'function') {
+          dlFeedPush('suggest', '님이 새 문의를 등록했어요');
+          if (typeof pushSync === 'function') pushSync();
+        }
+      } catch (e) {}
       return r;
     };
   </script>
