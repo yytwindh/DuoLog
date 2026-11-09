@@ -12,7 +12,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="DuoLog">
   <!-- PWA 매니페스트 인라인 등록 (앱 아이콘 및 전체화면 모드 정의) -->
-  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22DuoLog%20-%202%EC%9D%B8%20%EA%B3%B5%EC%9C%A0%20%ED%94%8C%EB%9E%98%EB%84%88%22%2C%22short_name%22%3A%22DuoLog%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23FAF7F5%22%2C%22theme_color%22%3A%22%236366F1%22%7D">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
   <!-- Tailwind CSS CDN -->
   <script>
@@ -521,6 +522,18 @@ Check your Browserslist config to be sure that your targets are set up correctly
       <button onclick="closeStatsModal()" class="w-full mt-5 py-2.5 rounded-2xl bg-gray-900 text-white text-xs font-semibold">
         확인
       </button>
+    </div>
+  </div>
+
+  <!-- iOS Safari 전용: 홈 화면 앱 설치 안내 배너 -->
+  <div id="iosInstallGuide" class="hidden fixed left-4 right-4 bottom-5 z-50 bg-gray-900 text-white rounded-3xl shadow-2xl p-4">
+    <div class="flex items-start gap-3">
+      <img src="apple-touch-icon.png" alt="DuoLog" class="w-11 h-11 rounded-2xl flex-shrink-0">
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-bold">DuoLog를 앱으로 설치하세요</p>
+        <p class="text-[11px] text-gray-300 mt-1 leading-relaxed">아래 <b>공유 버튼</b>을 누른 뒤 <b>'홈 화면에 추가'</b>를 선택하면, 아이콘으로 바로 실행되는 앱처럼 사용할 수 있어요.</p>
+      </div>
+      <button onclick="dismissIosGuide()" class="text-gray-400 hover:text-white text-sm flex-shrink-0">✕</button>
     </div>
   </div>
 
@@ -1608,6 +1621,31 @@ Check your Browserslist config to be sure that your targets are set up correctly
       if (yy) ensureHolidays(yy);
       updateHolidayBanner();
     });
+  
+    /* ----------------------------------------------------
+       15. iOS Safari 홈 화면 앱 설치 안내
+       - 아이폰 Safari에서 아직 홈 화면 앱으로 설치하지 않은 경우에만 표시
+    ---------------------------------------------------- */
+    function dismissIosGuide() {
+      syncStore.set('duolog_ios_guide_dismissed', '1');
+      const g = document.getElementById('iosInstallGuide');
+      if (g) g.classList.add('hidden');
+    }
+
+    function maybeShowIosGuide() {
+      try {
+        const ua = navigator.userAgent || '';
+        if (!/iphone|ipad|ipod/i.test(ua)) return;
+        const standalone = (window.navigator && window.navigator.standalone) ||
+          (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+        if (standalone) return;
+        if (syncStore.get('duolog_ios_guide_dismissed') === '1') return;
+        const g = document.getElementById('iosInstallGuide');
+        if (g) g.classList.remove('hidden');
+      } catch (e) {}
+    }
+
+    window.addEventListener('DOMContentLoaded', () => { setTimeout(maybeShowIosGuide, 1200); });
   </script>
 </body>
 </html>
