@@ -595,7 +595,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         <h3 class="text-base font-bold text-gray-900">자주 쓰는 루틴 편집</h3>
         <button onclick="closeRoutineManager()" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
       </div>
-      <p class="text-xs text-gray-500 mb-3">운동&루틴 탭에서 한 번에 추가할 수 있는 루틴 목록이에요. 이 폰에만 저장되고, 각자 자기 폰에서 따로 편집해 써요. 루틴을 길게 눌러 드래그하면 순서도 바꿀 수 있어요.</p>
+      <p class="text-xs text-gray-500 mb-3">운동&루틴 탭에서 한 번에 추가할 수 있는 루틴 목록이에요. 이 폰에만 저장되고, 각자 자기 폰에서 따로 편집해 써요. ☰ 손잡이를 끌거나, 항목을 길게 눌러 드래그하면 순서를 바꿀 수 있어요.</p>
       <div id="routineList" class="space-y-2 mb-4"></div>
       <form onsubmit="handleSaveRoutine(event)" class="space-y-2 p-3 bg-gray-50 rounded-2xl border border-gray-100">
         <input type="hidden" id="routineEditId">
@@ -1877,8 +1877,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       box.innerHTML = routines.map((r, i) => {
         const cat = categories.find(c => c.id === r.categoryId) || { emoji: '📌', name: '일반' };
         const meta = routineOwnerName(r.owner) + ' · ' + cat.name + (r.time ? ' · ' + r.time : '');
-        return '<div class="routine-row flex items-center gap-2 p-2.5 bg-white rounded-2xl border border-gray-100" data-idx="' + i + '" style="-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none;">' +
-          '<span class="text-gray-300 text-base px-0.5">☰</span>' +
+        return '<div class="routine-row flex items-center gap-2 p-2.5 bg-white rounded-2xl border border-gray-100" data-idx="' + i + '" style="-webkit-user-select:none;-webkit-touch-callout:none;">' +
+          '<span class="routine-grip text-gray-400 text-lg px-2 py-1 -ml-1.5" style="touch-action:none;cursor:grab;">☰</span>' +
           '<span class="text-base">' + (cat.emoji || '💪') + '</span>' +
           '<div class="flex-1 min-w-0"><p class="text-xs font-bold text-gray-800 truncate">' + escapeHtml(r.title) + '</p>' +
           '<p class="text-[10px] text-gray-400">' + escapeHtml(meta) + '</p></div>' +
@@ -2332,6 +2332,10 @@ Check your Browserslist config to be sure that your targets are set up correctly
         if (!row || e.target.closest('button')) return;
         const idx = parseInt(row.dataset.idx);
         if (isNaN(idx)) return;
+        if (e.target.closest('.routine-grip')) {
+          startRoutineDrag(row, idx, e.clientY, e.pointerId);
+          return;
+        }
         const startY = e.clientY;
         const pointerId = e.pointerId;
         let started = false;
