@@ -533,6 +533,51 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- [모달 3] 커플 프로필 & 이름 변경 모달 -->
+
+  <!-- 로그인 게이트 (2.9.32) -->
+  <div id="authGate" class="fixed inset-0 z-[90] bg-gray-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="w-full max-w-sm">
+      <div class="flex flex-col items-center mb-6">
+        <img src="apple-touch-icon.png" alt="DuoLog" class="w-20 h-20 rounded-3xl shadow-md mb-3">
+        <h1 class="text-xl font-black text-gray-900">DuoLog</h1>
+        <p class="text-xs text-gray-500 mt-1">둘만의 공유 플래너</p>
+      </div>
+      <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+        <div class="flex bg-gray-100 rounded-full p-1 mb-5">
+          <button type="button" id="authTabLogin" onclick="dlAuthTab('login')" class="flex-1 py-2 rounded-full text-xs font-bold bg-gray-900 text-white transition">로그인</button>
+          <button type="button" id="authTabRegister" onclick="dlAuthTab('register')" class="flex-1 py-2 rounded-full text-xs font-bold text-gray-500 transition">회원가입</button>
+        </div>
+        <form id="authLoginForm" onsubmit="return dlDoLogin(event)" class="space-y-3">
+          <input type="text" id="liId" placeholder="아이디" autocomplete="username" class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-medium">
+          <input type="password" id="liPw" placeholder="비밀번호" autocomplete="current-password" class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-medium">
+          <div class="flex items-center gap-4 px-1">
+            <label class="flex items-center gap-1.5 text-xs font-medium text-gray-600"><input type="checkbox" id="liSaveId" class="w-4 h-4 accent-indigo-600"> ID 저장</label>
+            <label class="flex items-center gap-1.5 text-xs font-medium text-gray-600"><input type="checkbox" id="liAuto" checked class="w-4 h-4 accent-indigo-600"> 자동로그인</label>
+          </div>
+          <p id="liMsg" class="hidden text-[11px] font-semibold px-1"></p>
+          <button type="submit" id="liBtn" class="w-full py-3.5 rounded-2xl bg-indigo-600 text-white font-bold text-sm active:scale-95 transition">로그인</button>
+        </form>
+        <form id="authRegisterForm" onsubmit="return dlDoRegister(event)" class="space-y-3 hidden">
+          <input type="text" id="regId" placeholder="아이디 (3~20자, 공백 없이)" autocomplete="username" class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-medium">
+          <input type="password" id="regPw" placeholder="비밀번호 (4자 이상)" autocomplete="new-password" class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-medium">
+          <input type="password" id="regPw2" placeholder="비밀번호 확인" autocomplete="new-password" class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-medium">
+          <div class="flex gap-2">
+            <input type="text" id="regEmoji" placeholder="💙" maxlength="2" class="w-16 text-center px-2 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm">
+            <input type="text" id="regName" placeholder="닉네임" class="flex-1 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-medium">
+          </div>
+          <div class="flex items-center gap-4 px-1">
+            <label class="flex items-center gap-1.5 text-xs font-medium text-gray-600"><input type="checkbox" id="regSaveId" checked class="w-4 h-4 accent-indigo-600"> ID 저장</label>
+            <label class="flex items-center gap-1.5 text-xs font-medium text-gray-600"><input type="checkbox" id="regAuto" checked class="w-4 h-4 accent-indigo-600"> 자동로그인</label>
+          </div>
+          <p id="regMsg" class="hidden text-[11px] font-semibold px-1"></p>
+          <button type="submit" id="regBtn" class="w-full py-3.5 rounded-2xl bg-gray-900 text-white font-bold text-sm active:scale-95 transition">가입하고 시작하기</button>
+          <p class="text-[10px] text-gray-400 px-1">비밀번호를 잊으면 찾을 수 없으니 꼭 기억해두세요.</p>
+        </form>
+      </div>
+      <p id="authNetStatus" class="text-center text-[11px] text-gray-400 mt-4"></p>
+    </div>
+  </div>
+
   <div id="modalProfile" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
       <div class="flex items-center justify-between mb-3">
@@ -548,6 +593,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         </div>
       </div>
       
+      <div id="profAccountBox" class="mb-4"></div>
       <form onsubmit="handleSaveProfile(event)" class="space-y-4">
         <!-- 나 -->
         <div class="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100">
@@ -3826,11 +3872,323 @@ Check your Browserslist config to be sure that your targets are set up correctly
     else dlInitSplit39();
   
     /* ----------------------------------------------------
+       46. 로그인 시스템 (2.9.32)
+       - 계정 목록: 고정 시드로 파생한 공용 채널에 암호화해 보관 (비밀번호는 PBKDF2 해시만)
+       - 세션: 자동로그인이면 localStorage, 아니면 sessionStorage (ID 저장은 별도)
+       - 신원: 계정을 동기화 프로필 자리(p1/p2)에 연결하면 그 자리가 내 자리가 됨
+    ---------------------------------------------------- */
+    const DL_ACCT_SEED = 'duolog-accounts-registry-v1';
+    let dlSession = null;
+    let _dlAcctKey = null;
+    let _dlAcctTopic = null;
+    async function dlAcctKey() {
+      if (!_dlAcctKey) _dlAcctKey = await deriveSyncKey(DL_ACCT_SEED);
+      return _dlAcctKey;
+    }
+    async function dlAcctTopic() {
+      if (!_dlAcctTopic) _dlAcctTopic = 'duolog/v1/' + (await sha256hex(DL_ACCT_SEED)).slice(0, 40);
+      return _dlAcctTopic;
+    }
+    async function dlAcctEncrypt(key, obj) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const data = new TextEncoder().encode(JSON.stringify(obj));
+      const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+      const out = new Uint8Array(12 + ct.byteLength);
+      out.set(iv); out.set(new Uint8Array(ct), 12);
+      return b64encode(out);
+    }
+    async function dlAcctDecrypt(key, b64) {
+      const raw = b64decode(b64);
+      const iv = raw.slice(0, 12);
+      const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, raw.slice(12));
+      return JSON.parse(new TextDecoder().decode(pt));
+    }
+    async function dlPwHash(id, pw) {
+      const enc = new TextEncoder();
+      const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveBits']);
+      const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode('duolog-acct-' + id), iterations: 100000, hash: 'SHA-256' }, base, 256);
+      return [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    function dlAcctClients(onPayload) {
+      const clients = [];
+      SYNC_BROKERS.forEach(url => {
+        try {
+          const c = mqtt.connect(url, { clientId: 'duolog-acct-' + Math.random().toString(36).slice(2, 10), reconnectPeriod: 0, connectTimeout: 7000, clean: true });
+          c.on('message', (t, p) => { try { onPayload(p.toString()); } catch (e) {} });
+          clients.push(c);
+        } catch (e) {}
+      });
+      return clients;
+    }
+    function dlAcctCloseAll(clients) { clients.forEach(c => { try { c.end(true); } catch (e) {} }); }
+    async function dlRegistryFetch() {
+      const key = await dlAcctKey();
+      const topic = await dlAcctTopic();
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const states = SYNC_BROKERS.map(() => 'pending'); // pending | empty | got | dead
+        const finish = () => {
+          if (settled) return;
+          if (states.every(s => s !== 'pending')) {
+            settled = true;
+            dlAcctCloseAll(clients);
+            if (states.some(s => s === 'got' || s === 'empty')) resolve({ accounts: [] });
+            else reject(new Error('network'));
+          }
+        };
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          dlAcctCloseAll(clients);
+          if (states.some(s => s === 'got' || s === 'empty')) resolve({ accounts: [] });
+          else reject(new Error('network'));
+        }, 9000);
+        const clients = dlAcctClients(async payload => {
+          if (settled) return;
+          try {
+            const reg = await dlAcctDecrypt(key, payload);
+            if (reg && Array.isArray(reg.accounts)) {
+              settled = true;
+              clearTimeout(timer);
+              dlAcctCloseAll(clients);
+              resolve(reg);
+            }
+          } catch (e) {}
+        });
+        clients.forEach((c, i) => {
+          c.on('connect', () => {
+            try { c.subscribe(topic, { qos: 1 }); } catch (e) {}
+            setTimeout(() => { if (states[i] === 'pending') { states[i] = 'empty'; finish(); } }, 3000);
+          });
+          c.on('error', () => { if (states[i] === 'pending') { states[i] = 'dead'; finish(); } });
+          c.on('close', () => { if (states[i] === 'pending') { states[i] = 'dead'; finish(); } });
+        });
+      });
+    }
+    async function dlRegistryPublish(reg) {
+      const key = await dlAcctKey();
+      const topic = await dlAcctTopic();
+      const payload = await dlAcctEncrypt(key, reg);
+      return new Promise((resolve, reject) => {
+        let done = false;
+        const clients = dlAcctClients(() => {});
+        const timer = setTimeout(() => { if (!done) { done = true; dlAcctCloseAll(clients); reject(new Error('network')); } }, 9000);
+        let connected = 0;
+        clients.forEach(c => {
+          c.on('connect', () => {
+            try {
+              c.publish(topic, payload, { retain: true, qos: 1 }, () => {
+                if (!done) { done = true; clearTimeout(timer); dlAcctCloseAll(clients); resolve(true); }
+              });
+            } catch (e) {}
+            connected++;
+          });
+          c.on('error', () => {});
+        });
+      });
+    }
+    function dlSessionStore(sess, saveId, auto) {
+      if (saveId) syncStore.set('duolog_auth_id', sess.id); else syncStore.del('duolog_auth_id');
+      if (auto) { syncStore.set('duolog_auth_session', JSON.stringify(sess)); try { sessionStorage.removeItem('duolog_auth_session'); } catch (e) {} }
+      else { syncStore.del('duolog_auth_session'); try { sessionStorage.setItem('duolog_auth_session', JSON.stringify(sess)); } catch (e) {} }
+    }
+    function dlSessionLoad() {
+      try { const s = syncStore.get('duolog_auth_session'); if (s) return JSON.parse(s); } catch (e) {}
+      try { const s2 = sessionStorage.getItem('duolog_auth_session'); if (s2) return JSON.parse(s2); } catch (e) {}
+      return null;
+    }
+    function dlBoundSlot() {
+      if (!dlSession) return null;
+      if (duoProfile.p1 && duoProfile.p1.account === dlSession.id) return 'p1';
+      if (duoProfile.p2 && duoProfile.p2.account === dlSession.id) return 'p2';
+      return null;
+    }
+    function dlEnterApp(sess) {
+      dlSession = sess;
+      const gate = document.getElementById('authGate');
+      if (gate) gate.classList.add('hidden');
+      const bound = dlBoundSlot();
+      if (bound) {
+        try { syncStore.set('duolog_my_role', bound); } catch (e) {}
+        const slot = duoProfile[bound];
+        if (slot.name !== sess.name || slot.emoji !== sess.emoji) {
+          slot.name = sess.name; slot.emoji = sess.emoji;
+          persistData();
+        }
+        if (typeof renderProfileUI === 'function') renderProfileUI();
+        if (typeof renderItems === 'function') renderItems();
+      }
+      dlRenderAccountBox();
+    }
+    function dlLogout() {
+      syncStore.del('duolog_auth_session');
+      try { sessionStorage.removeItem('duolog_auth_session'); } catch (e) {}
+      dlSession = null;
+      location.reload();
+    }
+    function dlAuthTab(mode) {
+      const login = mode === 'login';
+      document.getElementById('authLoginForm').classList.toggle('hidden', !login);
+      document.getElementById('authRegisterForm').classList.toggle('hidden', login);
+      document.getElementById('authTabLogin').className = 'flex-1 py-2 rounded-full text-xs font-bold transition ' + (login ? 'bg-gray-900 text-white' : 'text-gray-500');
+      document.getElementById('authTabRegister').className = 'flex-1 py-2 rounded-full text-xs font-bold transition ' + (!login ? 'bg-gray-900 text-white' : 'text-gray-500');
+    }
+    function dlAuthMsg(id, txt, ok) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = txt;
+      el.classList.remove('hidden');
+      el.className = 'text-[11px] font-semibold px-1 ' + (ok ? 'text-emerald-600' : 'text-rose-500');
+    }
+    async function dlDoLogin(ev) {
+      ev.preventDefault();
+      const id = document.getElementById('liId').value.trim();
+      const pw = document.getElementById('liPw').value;
+      if (!id || !pw) { dlAuthMsg('liMsg', '아이디와 비밀번호를 입력해주세요.', false); return false; }
+      const btn = document.getElementById('liBtn');
+      btn.disabled = true; btn.textContent = '확인 중…';
+      try {
+        const reg = await dlRegistryFetch();
+        const acct = reg.accounts.find(a => a.id === id);
+        if (!acct) { dlAuthMsg('liMsg', '없는 아이디예요. 회원가입을 먼저 해주세요.', false); return false; }
+        const hash = await dlPwHash(id, pw);
+        if (hash !== acct.pwHash) { dlAuthMsg('liMsg', '비밀번호가 달라요.', false); return false; }
+        const sess = { id: acct.id, name: acct.name, emoji: acct.emoji };
+        dlSessionStore(sess, document.getElementById('liSaveId').checked, document.getElementById('liAuto').checked);
+        dlEnterApp(sess);
+        showToast(sess.name + '님, 환영해요!', sess.emoji);
+      } catch (e) {
+        dlAuthMsg('liMsg', '서버에 연결할 수 없어요. 네트워크를 확인해주세요.', false);
+      } finally {
+        btn.disabled = false; btn.textContent = '로그인';
+      }
+      return false;
+    }
+    async function dlDoRegister(ev) {
+      ev.preventDefault();
+      const id = document.getElementById('regId').value.trim();
+      const pw = document.getElementById('regPw').value;
+      const pw2 = document.getElementById('regPw2').value;
+      const name = document.getElementById('regName').value.trim();
+      const emoji = document.getElementById('regEmoji').value.trim() || '🙂';
+      if (!/^[^\s]{3,20}$/.test(id)) { dlAuthMsg('regMsg', '아이디는 공백 없이 3~20자로 해주세요.', false); return false; }
+      if (pw.length < 4) { dlAuthMsg('regMsg', '비밀번호는 4자 이상으로 해주세요.', false); return false; }
+      if (pw !== pw2) { dlAuthMsg('regMsg', '비밀번호 확인이 서로 달라요.', false); return false; }
+      if (!name) { dlAuthMsg('regMsg', '닉네임을 입력해주세요.', false); return false; }
+      const btn = document.getElementById('regBtn');
+      btn.disabled = true; btn.textContent = '가입 중…';
+      try {
+        const reg = await dlRegistryFetch();
+        if (reg.accounts.some(a => a.id === id)) { dlAuthMsg('regMsg', '이미 있는 아이디예요. 다른 아이디를 써주세요.', false); return false; }
+        const acct = { id: id, pwHash: await dlPwHash(id, pw), name: name, emoji: emoji, createdAt: Date.now() };
+        reg.accounts.push(acct);
+        await dlRegistryPublish(reg);
+        const sess = { id: id, name: name, emoji: emoji };
+        dlSessionStore(sess, document.getElementById('regSaveId').checked, document.getElementById('regAuto').checked);
+        dlEnterApp(sess);
+        showToast('가입 완료! 프로필에서 내 자리를 연결해주세요.', '🎉');
+      } catch (e) {
+        dlAuthMsg('regMsg', '서버에 연결할 수 없어요. 네트워크를 확인해주세요.', false);
+      } finally {
+        btn.disabled = false; btn.textContent = '가입하고 시작하기';
+      }
+      return false;
+    }
+    function dlClaimSlot(slot) {
+      if (!dlSession) return;
+      duoProfile[slot].account = dlSession.id;
+      duoProfile[slot].name = dlSession.name;
+      duoProfile[slot].emoji = dlSession.emoji;
+      try { syncStore.set('duolog_my_role', slot); } catch (e) {}
+      persistData();
+      if (typeof renderProfileUI === 'function') renderProfileUI();
+      if (typeof renderItems === 'function') renderItems();
+      dlRenderAccountBox();
+      try { dlApplyProfileOwnership(); } catch (e) {}
+      showToast('내 자리가 연결됐어요', dlSession.emoji);
+    }
+    function dlRenderAccountBox() {
+      const box = document.getElementById('profAccountBox');
+      if (!box) return;
+      if (!dlSession) {
+        box.innerHTML = '<div class="p-3 bg-gray-50 rounded-2xl border border-gray-100 text-[11px] text-gray-400">로그인 정보가 없어요.</div>';
+        return;
+      }
+      const bound = dlBoundSlot();
+      let inner = '<div class="p-3 bg-gray-50 rounded-2xl border border-gray-100">' +
+        '<div class="flex items-center justify-between mb-1"><span class="text-[11px] font-bold text-gray-500">로그인 계정</span>' +
+        '<button type="button" onclick="dlLogout()" class="text-[11px] font-bold text-rose-500">로그아웃</button></div>' +
+        '<p class="text-xs font-bold text-gray-800">' + dlSession.emoji + ' ' + escapeHtml(dlSession.name) + ' <span class="text-gray-400 font-medium">(' + escapeHtml(dlSession.id) + ')</span></p>';
+      if (bound) {
+        inner += '<p class="text-[11px] text-emerald-600 font-semibold mt-1">🔗 ' + (bound === 'p1' ? '파트너 1' : '파트너 2') + ' 자리와 연결되어 있어요</p>';
+      } else {
+        inner += '<p class="text-[11px] text-gray-400 mt-1 mb-2">아직 내 자리가 연결되지 않았어요. 아래에서 내 자리를 골라주세요.</p><div class="flex gap-2">';
+        ['p1', 'p2'].forEach(slot => {
+          const p = duoProfile[slot];
+          const taken = p.account && p.account !== dlSession.id;
+          inner += '<button type="button" ' + (taken ? 'disabled' : 'onclick="dlClaimSlot(\'' + slot + '\')"') +
+            ' class="flex-1 py-2 rounded-xl border text-xs font-bold ' + (taken ? 'bg-gray-100 text-gray-300 border-gray-100' : 'bg-white text-gray-700 border-gray-200 active:scale-95 transition') + '">' +
+            p.emoji + ' ' + escapeHtml(p.name) + (taken ? ' (연결됨)' : '로 연결') + '</button>';
+        });
+        inner += '</div>';
+      }
+      box.innerHTML = inner + '</div>';
+    }
+    const _origOpenProfile46 = openProfileModal;
+    openProfileModal = function () {
+      _origOpenProfile46.apply(this, arguments);
+      try { dlRenderAccountBox(); } catch (e) {}
+    };
+    const _origSaveProfile46 = handleSaveProfile;
+    handleSaveProfile = function (e) {
+      _origSaveProfile46.apply(this, arguments);
+      try {
+        if (dlSession) {
+          dlSession.name = duoProfile[dlMySlot()].name;
+          dlSession.emoji = duoProfile[dlMySlot()].emoji;
+          const s = dlSessionLoad();
+          if (s && s.id === dlSession.id) {
+            const auto = !!syncStore.get('duolog_auth_session');
+            dlSessionStore(dlSession, !!syncStore.get('duolog_auth_id'), auto);
+          }
+          dlRegistryFetch().then(reg => {
+            const mine = reg.accounts.find(a => a.id === dlSession.id);
+            if (mine && (mine.name !== dlSession.name || mine.emoji !== dlSession.emoji)) {
+              mine.name = dlSession.name; mine.emoji = dlSession.emoji;
+              dlRegistryPublish(reg).catch(() => {});
+            }
+          }).catch(() => {});
+        }
+      } catch (e2) {}
+    };
+    function dlAuthBoot() {
+      try {
+        const sess = dlSessionLoad();
+        if (sess && sess.id) { dlEnterApp(sess); return; }
+        const gate = document.getElementById('authGate');
+        if (gate) gate.classList.remove('hidden');
+        const savedId = syncStore.get('duolog_auth_id');
+        if (savedId) {
+          document.getElementById('liId').value = savedId;
+          document.getElementById('liSaveId').checked = true;
+        }
+      } catch (e) {}
+    }
+    window.addEventListener('load', () => setTimeout(dlAuthBoot, 120));
+  
+    /* ----------------------------------------------------
        44. 프로필 소유권 (2.9.31): 이름·이모지는 각자 자기 폰에서만 변경
        - 이 폰의 사용자(duolog_my_role)에 따라 프로필 모달에서 내 슬롯만 편집 가능
        - 동기화 수신 시 내 슬롯은 이 폰의 값을 유지하고, 상대 슬롯만 상대 값을 받아옴
     ---------------------------------------------------- */
     function dlMySlot() {
+      // 로그인 계정이 연결된 자리가 있으면 그 자리가 내 자리 (2.9.32)
+      try {
+        if (typeof dlSession !== 'undefined' && dlSession && typeof duoProfile !== 'undefined') {
+          if (duoProfile.p1 && duoProfile.p1.account === dlSession.id) return 'p1';
+          if (duoProfile.p2 && duoProfile.p2.account === dlSession.id) return 'p2';
+        }
+      } catch (e) {}
       const r = (typeof storedRole === 'function') ? storedRole() : '';
       return r === 'p2' ? 'p2' : 'p1';
     }
