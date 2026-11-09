@@ -1877,7 +1877,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       box.innerHTML = routines.map((r, i) => {
         const cat = categories.find(c => c.id === r.categoryId) || { emoji: '📌', name: '일반' };
         const meta = routineOwnerName(r.owner) + ' · ' + cat.name + (r.time ? ' · ' + r.time : '');
-        return '<div class="routine-row flex items-center gap-2 p-2.5 bg-white rounded-2xl border border-gray-100" data-idx="' + i + '" style="-webkit-user-select:none;-webkit-touch-callout:none;">' +
+        return '<div class="routine-row flex items-center gap-2 p-2.5 bg-white rounded-2xl border border-gray-100" data-idx="' + i + '" style="-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none;">' +
           '<span class="text-gray-300 text-base px-0.5">☰</span>' +
           '<span class="text-base">' + (cat.emoji || '💪') + '</span>' +
           '<div class="flex-1 min-w-0"><p class="text-xs font-bold text-gray-800 truncate">' + escapeHtml(r.title) + '</p>' +
@@ -2374,7 +2374,10 @@ Check your Browserslist config to be sure that your targets are set up correctly
       try { row.setPointerCapture(pointerId); } catch (err) {}
       if (navigator.vibrate) { try { navigator.vibrate(20); } catch (err) {} }
 
+      const blockScroll = ev => { ev.preventDefault(); };
+      document.addEventListener('touchmove', blockScroll, { passive: false });
       const onMove = ev => {
+        if (ev.pointerId !== undefined && ev.pointerId !== pointerId) return;
         ev.preventDefault();
         const dy = ev.clientY - startY;
         row.style.transform = 'translateY(' + dy + 'px)';
@@ -2392,9 +2395,10 @@ Check your Browserslist config to be sure that your targets are set up correctly
         }
       };
       const onUp = () => {
-        row.removeEventListener('pointermove', onMove);
-        row.removeEventListener('pointerup', onUp);
-        row.removeEventListener('pointercancel', onUp);
+        document.removeEventListener('touchmove', blockScroll);
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        document.removeEventListener('pointercancel', onUp);
         rows.forEach(r => {
           r.style.transform = '';
           r.style.transition = '';
@@ -2413,9 +2417,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
         }
         renderRoutineList();
       };
-      row.addEventListener('pointermove', onMove);
-      row.addEventListener('pointerup', onUp);
-      row.addEventListener('pointercancel', onUp);
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+      document.addEventListener('pointercancel', onUp);
     }
   </script>
 </body>
