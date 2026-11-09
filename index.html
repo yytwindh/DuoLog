@@ -3370,7 +3370,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         const both = s.p1Date && s.p2Date;
         return '<div class="bg-white rounded-3xl p-4 shadow-sm border ' + (both ? 'border-amber-200 bg-amber-50/40' : 'border-gray-100') + '">' +
           '<div class="flex items-center justify-between mb-1">' +
-          '<span class="text-sm font-extrabold text-gray-900">Step ' + i + (s.emoji ? ' ' + s.emoji : '') + '</span>' +
+          '<span class="text-sm font-extrabold text-gray-900">Step ' + i + ' ' + dlMoneyEmoji(s, i) + '</span>' +
           '<span class="flex items-center gap-2">' + (both ? '<span class="text-[11px] font-bold text-amber-500">🎊 두 사람 모두 달성</span>' : '') +
           '<button onclick="openMoneyModal(\'' + s.id + '\')" class="p-1.5 rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button></span></div>' +
           moneyPersonRow(s, 'p2') + moneyPersonRow(s, 'p1') +
@@ -3811,6 +3811,19 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', dlInitSplit39);
     else dlInitSplit39();
+  
+    /* ----------------------------------------------------
+       41. 머니로드 스텝 이모지 자동 전환 (2.9.29)
+       - 마지막 스텝(목표 끝): 원래 이모지 그대로 (달성해도 유지)
+       - 두 사람 모두 달성: ✅ / 현재 진행 중(첫 미달성 스텝): 🔥 / 그 외: 원래 이모지
+    ---------------------------------------------------- */
+    function dlMoneyEmoji(s, i) {
+      if (i === moneySteps.length - 1) return s.emoji || '🔮';
+      if (s.p1Date && s.p2Date) return '✅';
+      const cur = moneySteps.findIndex(x => !(x.p1Date && x.p2Date));
+      if (i === cur) return '🔥';
+      return s.emoji || '💫';
+    }
   </script>
 </body>
 </html>
