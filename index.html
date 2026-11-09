@@ -578,6 +578,19 @@ Check your Browserslist config to be sure that your targets are set up correctly
     </div>
   </div>
 
+
+  <!-- 전체 계정 목록 (개발자용, 2.9.33) -->
+  <div id="modalAccounts" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+    <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
+      <div class="flex items-center justify-between mb-1">
+        <h3 class="text-base font-bold text-gray-900">가입 계정 목록</h3>
+        <button onclick="closeAccountsModal()" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+      </div>
+      <p class="text-[11px] text-gray-400 mb-4">개발자 확인용이에요. 비밀번호는 해시로 저장되어 원문은 볼 수 없어요.</p>
+      <div id="acctList" class="space-y-2"></div>
+    </div>
+  </div>
+
   <div id="modalProfile" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
       <div class="flex items-center justify-between mb-3">
@@ -2789,7 +2802,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
        - 공유 탭이면 일정 탭으로 돌아가고 true
        - 홈(일정 탭, 모달 없음)이면 false -> 셸이 종료 확인을 띄움
     ---------------------------------------------------- */
-    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo', 'modalTimePicker', 'modalBucket', 'modalMoney'];
+    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo', 'modalTimePicker', 'modalBucket', 'modalMoney', 'modalAccounts'];
     const dlModalStack = [];
     function dlModalIsOpen(el) { return !!el && !el.classList.contains('pointer-events-none'); }
     (function trackModals() {
@@ -3870,6 +3883,57 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', dlInitSplit39);
     else dlInitSplit39();
+  
+    /* ----------------------------------------------------
+       47. 개발자용 전체 계정 보기 (2.9.33)
+       - 개발자 = 프로필 파트너 1 자리에 연결된 계정으로 로그인한 경우
+    ---------------------------------------------------- */
+    function dlIsAdmin() {
+      return !!(dlSession && duoProfile.p1 && duoProfile.p1.account === dlSession.id);
+    }
+    const _origRenderAcctBox47 = dlRenderAccountBox;
+    dlRenderAccountBox = function () {
+      _origRenderAcctBox47.apply(this, arguments);
+      try {
+        const box = document.getElementById('profAccountBox');
+        if (box && dlIsAdmin() && box.firstElementChild) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'w-full mt-2 py-2 rounded-xl bg-gray-900 text-white text-[11px] font-bold active:scale-95 transition';
+          btn.textContent = '🛠 개발자: 전체 계정 보기';
+          btn.onclick = openAccountsModal;
+          box.firstElementChild.appendChild(btn);
+        }
+      } catch (e) {}
+    };
+    function dlAcctDate(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0');
+    }
+    async function openAccountsModal() {
+      const modal = document.getElementById('modalAccounts');
+      const list = document.getElementById('acctList');
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      list.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">불러오는 중…</p>';
+      try {
+        const reg = await dlRegistryFetch();
+        if (!reg.accounts.length) {
+          list.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">아직 가입한 계정이 없어요.</p>';
+          return;
+        }
+        list.innerHTML = reg.accounts.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(a =>
+          '<div class="p-3 bg-gray-50 rounded-2xl border border-gray-100">' +
+          '<p class="text-xs font-bold text-gray-800">' + (a.emoji || '🙂') + ' ' + escapeHtml(a.name || '') + ' <span class="text-gray-400 font-medium">(' + escapeHtml(a.id) + ')</span></p>' +
+          '<p class="text-[10px] text-gray-400 mt-0.5">가입 ' + dlAcctDate(a.createdAt) + ' · 비밀번호 해시 ' + escapeHtml(String(a.pwHash || '').slice(0, 12)) + '…</p>' +
+          '</div>').join('');
+      } catch (e) {
+        list.innerHTML = '<p class="text-xs text-rose-500 text-center py-4">서버에 연결할 수 없어요.</p>';
+      }
+    }
+    function closeAccountsModal() {
+      document.getElementById('modalAccounts').classList.add('opacity-0', 'pointer-events-none');
+    }
   
     /* ----------------------------------------------------
        46. 로그인 시스템 (2.9.32)
