@@ -2477,6 +2477,58 @@ Check your Browserslist config to be sure that your targets are set up correctly
       }
       return false;
     };
+  
+    /* ----------------------------------------------------
+       20. 루틴 칩 카테고리별 그룹 표시 (기존 renderRoutineChips 대체)
+       - 전체 보기: 카테고리 이름표와 함께 그룹으로 표시
+       - 카테고리 필터 선택 시: 그 카테고리 루틴만 표시
+    ---------------------------------------------------- */
+    function renderRoutineChips() {
+      const box = document.getElementById('routineChips');
+      if (!box) return;
+      if (!routines.length) {
+        box.innerHTML = '<span class="text-[11px] text-gray-400">아직 루틴이 없어요. 루틴 편집에서 추가해보세요.</span>';
+        return;
+      }
+      const filter = (typeof selectedCategoryFilter !== 'undefined') ? selectedCategoryFilter : 'all';
+      const chipHtml = r => {
+        const cat = categories.find(c => c.id === r.categoryId) || { emoji: '💪' };
+        const dot = r.owner === 'p1' ? '#6366F1' : r.owner === 'p2' ? '#EC4899' : '#8B5CF6';
+        return '<button data-routine-id="' + r.id + '" class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-white border border-gray-200 shadow-sm text-xs font-semibold text-gray-700 active:scale-95 transition">' +
+          '<span>' + (cat.emoji || '💪') + '</span>' + escapeHtml(r.title) +
+          '<span class="w-1.5 h-1.5 rounded-full" style="background:' + dot + '"></span></button>';
+      };
+      let out = '';
+      const knownIds = categories.map(c => c.id);
+      categories.forEach(cat => {
+        if (filter !== 'all' && filter !== cat.id) return;
+        const rs = routines.filter(r => r.categoryId === cat.id);
+        if (!rs.length) return;
+        out += '<span class="w-full text-[11px] font-bold text-gray-400">' + (cat.emoji || '') + ' ' + escapeHtml(cat.name) + '</span>' + rs.map(chipHtml).join('');
+      });
+      if (filter === 'all') {
+        const orphans = routines.filter(r => !knownIds.includes(r.categoryId));
+        if (orphans.length) out += '<span class="w-full text-[11px] font-bold text-gray-400">📌 기타</span>' + orphans.map(chipHtml).join('');
+      }
+      box.innerHTML = out || '<span class="text-[11px] text-gray-400">이 카테고리에 등록된 루틴이 없어요.</span>';
+    }
+
+    (function initRoutineChipGroups() {
+      const box = document.getElementById('routineChips');
+      if (box) {
+        box.addEventListener('click', e => {
+          const btn = e.target.closest('[data-routine-id]');
+          if (btn) quickAddRoutine(btn.dataset.routineId);
+        });
+      }
+      if (typeof setCategoryFilter === 'function') {
+        const _origSetCategoryFilter16 = setCategoryFilter;
+        setCategoryFilter = function (catId) {
+          _origSetCategoryFilter16(catId);
+          renderRoutineChips();
+        };
+      }
+    })();
   </script>
 </body>
 </html>
