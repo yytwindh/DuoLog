@@ -1059,7 +1059,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
           <span class="text-sm mt-0.5 ${isSelected ? 'text-white' : 'text-gray-800'} font-semibold">${dayNum}</span>
           ${isToday && !isSelected ? '<span class="w-1 h-1 bg-indigo-600 rounded-full mt-1"></span>' : ''}
           ${hasEvents && isSelected ? '<span class="w-1 h-1 bg-pink-400 rounded-full mt-1"></span>' : (hasEvents && !isToday ? '<span class="w-1 h-1 bg-gray-300 rounded-full mt-1"></span>' : '')}
-          ${(typeof dlMilestone === 'function' && dlMilestone(dateStr)) ? '<span class="text-[8px] leading-none mt-0.5">💗</span>' : ''}
+          ${(typeof dlSpecialDay === 'function' && dlSpecialDay(dateStr)) ? '<span class="text-[8px] leading-none mt-0.5">' + dlSpecialDay(dateStr).marker + '</span>' : ''}
         `;
         container.appendChild(btn);
       }
@@ -1853,6 +1853,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         const dayItems = items.filter(it => it.date === ds && dlOwnerVisible(it) && (selectedCategoryFilter === 'all' || it.categoryId === selectedCategoryFilter));
         const holName = (typeof getHoliday === 'function') ? getHoliday(ds) : null;
         const msDays = (typeof dlMilestone === 'function') ? dlMilestone(ds) : 0;
+        const spDay = (typeof dlSpecialDay === 'function') ? dlSpecialDay(ds) : null;
         let dots = '';
         dayItems.slice(0, 3).forEach(it => {
           const cat = categories.find(c => c.id === it.categoryId);
@@ -1867,7 +1868,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         out += '<button onclick="onMonthDayClick(\'' + ds + '\')" class="flex flex-col items-center py-1.5 rounded-xl ' +
           (isSel ? 'bg-indigo-600 shadow-sm' : 'hover:bg-gray-50') + '">' +
           '<span class="text-xs font-semibold ' + numCls + todayCls + '">' + d.getDate() + '</span>' +
-          '<span class="block w-full max-w-[46px] truncate text-center text-[8px] leading-tight h-3 ' + (holName ? (isSel ? 'text-red-200' : 'text-red-400') : (msDays ? (isSel ? 'text-pink-200' : 'text-pink-500 font-bold') : '')) + '">' + (holName || (msDays ? '💗' + msDays.toLocaleString() + '일' : '')) + '</span>' +
+          '<span class="block w-full max-w-[46px] truncate text-center text-[8px] leading-tight h-3 ' + (spDay ? (isSel ? spDay.clsSel : spDay.cls) : (holName ? (isSel ? 'text-red-200' : 'text-red-400') : '')) + '">' + (spDay ? spDay.text : (holName || '')) + '</span>' +
           '<span class="flex items-center justify-center gap-0.5 mt-0.5 h-3.5">' + dots + '</span></button>';
       }
       grid.innerHTML = out;
@@ -2503,6 +2504,18 @@ Check your Browserslist config to be sure that your targets are set up correctly
           }
         }
       }
+      // N주년(시작일의 매년 같은 날짜)도 D-day 후보에 포함 (2.9.25)
+      if (duoProfile.startDate) {
+        const s1 = dlParseDate(duoProfile.startDate);
+        if (s1 && !isNaN(s1)) {
+          const t1 = new Date(); t1.setHours(0, 0, 0, 0);
+          let yEvt = new Date(t1.getFullYear(), s1.getMonth(), s1.getDate());
+          if (yEvt <= t1) yEvt = new Date(t1.getFullYear() + 1, s1.getMonth(), s1.getDate());
+          const yDiff = Math.round((yEvt - t1) / 86400000);
+          const yN = yEvt.getFullYear() - s1.getFullYear();
+          if (yN > 0 && yDiff > 0 && (!next || yDiff < next.diff)) next = { title: '함께한 지 ' + yN + '주년', diff: yDiff };
+        }
+      }
       if (next) {
         if (next.diff === 0) text += ' · 오늘은 ' + next.title + ' 💗';
         else if (next.diff <= 30) text += ' · ' + next.title + ' D-' + next.diff;
@@ -2515,6 +2528,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const md = (selectedDate || '').slice(5);
       const hits = (duoProfile.anniversaries || []).filter(a => a.date && a.date.slice(5) === md);
       const msSel = (typeof dlMilestone === 'function') ? dlMilestone(selectedDate) : 0;
+      const yrSel = (typeof dlYearsAnniv === 'function') ? dlYearsAnniv(selectedDate) : 0;
+      if (yrSel && !hits.length) hits.push({ title: '함께한 지 ' + yrSel + '주년' });
       if (msSel) hits.push({ title: '함께한 지 ' + msSel.toLocaleString() + '일' });
       if (hits.length) {
         banner.textContent = '💗 오늘은 ' + hits.map(a => a.title).join(' · ') + ' 기념일이에요';
@@ -3669,6 +3684,34 @@ Check your Browserslist config to be sure that your targets are set up correctly
       } catch (e) {}
       return r;
     };
+  
+    /* ----------------------------------------------------
+       37. N주년 + 등록 기념일 달력 표시 (2.9.25)
+       - N주년: 시작일과 월·일이 같고 연도가 뒤인 날 → '💗N주년'
+       - 등록 기념일: 제목에 '생일'이 있으면 🎂, 아니면 🎉 + 제목
+       - 월간 셀 이름 줄·주간 스트립 마커에 표시 (우선순위: 등록 기념일 > 주년 > 100일 > 공휴일 이름)
+    ---------------------------------------------------- */
+    function dlYearsAnniv(dateStr) {
+      if (!duoProfile.startDate || !dateStr) return 0;
+      const s = String(duoProfile.startDate), d = String(dateStr);
+      if (s.length < 10 || d.length < 10 || s.slice(5) !== d.slice(5)) return 0;
+      const n = parseInt(d.slice(0, 4), 10) - parseInt(s.slice(0, 4), 10);
+      return n > 0 ? n : 0;
+    }
+    function dlSpecialDay(dateStr) {
+      if (!dateStr) return null;
+      const md = String(dateStr).slice(5);
+      const reg = (duoProfile.anniversaries || []).find(a => a && a.date && String(a.date).slice(5) === md);
+      if (reg) {
+        const isBday = String(reg.title || '').indexOf('생일') >= 0;
+        return { text: (isBday ? '🎂' : '🎉') + (reg.title || '기념일'), marker: isBday ? '🎂' : '🎉', cls: 'text-violet-500 font-bold', clsSel: 'text-violet-200 font-bold' };
+      }
+      const yrs = dlYearsAnniv(dateStr);
+      if (yrs) return { text: '💗' + yrs + '주년', marker: '💗', cls: 'text-pink-500 font-bold', clsSel: 'text-pink-200 font-bold' };
+      const ms = (typeof dlMilestone === 'function') ? dlMilestone(dateStr) : 0;
+      if (ms) return { text: '💗' + ms.toLocaleString() + '일', marker: '💗', cls: 'text-pink-500 font-bold', clsSel: 'text-pink-200 font-bold' };
+      return null;
+    }
   </script>
 </body>
 </html>
