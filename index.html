@@ -243,7 +243,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
 
       <!-- 보기 필터 칩: [둘 다 보기] [나 (동호)] [상대방 (뱁새)] -->
       <div class="flex items-center justify-between mb-3 bg-gray-100/90 p-1 rounded-2xl text-xs font-medium text-gray-600">
-        <button onclick="setUserFilter('all')" id="filter-all" class="flex-1 py-1.5 rounded-xl transition-all duration-200 font-semibold shadow-sm bg-white text-gray-900">
+        <button onclick="setUserFilter('all')" id="filter-all" class="flex-1 py-1.5 rounded-xl transition-all duration-200 font-semibold shadow-sm bg-white text-gray-900 flex items-center justify-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-violet-500"></span>
           둘 다 함께
         </button>
         <button onclick="setUserFilter('p1')" id="filter-p1" class="flex-1 py-1.5 rounded-xl transition-all duration-200 flex items-center justify-center gap-1">
@@ -646,6 +647,102 @@ Check your Browserslist config to be sure that your targets are set up correctly
     </div>
   </div>
 
+  <!-- [모달] 공모주 일정 추가 -->
+  <div id="modalIpo" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+    <div id="modalIpoContent" class="w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl transform translate-y-full sheet-transition max-h-[92vh] overflow-y-auto no-scrollbar">
+      <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4"></div>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-900">📈 공모주 일정 추가</h3>
+        <button onclick="closeIpoModal()" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">
+          ✕
+        </button>
+      </div>
+
+      <form id="ipoForm" onsubmit="handleIpoSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1.5">종목명</label>
+          <input type="text" id="ipoName" required placeholder="예: 에이엘로봇"
+                 class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm font-medium transition">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5">주관사</label>
+            <input type="text" id="ipoBroker" placeholder="예: 대신증권"
+                   class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5">확정공모가 (원)</label>
+            <input type="number" id="ipoPrice" inputmode="numeric" placeholder="예: 17600"
+                   class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1.5">균등 증거금 (원, 선택)</label>
+          <input type="number" id="ipoDeposit" inputmode="numeric" placeholder="예: 88000"
+                 class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5">청약 시작일</label>
+            <input type="date" id="ipoSubStart"
+                   class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5">청약 종료일</label>
+            <input type="date" id="ipoSubEnd"
+                   class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5">환불일 (선택)</label>
+            <input type="date" id="ipoRefund"
+                   class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5">상장일</label>
+            <input type="date" id="ipoListing"
+                   class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1.5">누구의 일정인가요?</label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="cursor-pointer">
+              <input type="radio" name="ipoOwner" value="p1" class="peer sr-only">
+              <div class="p-2.5 text-center text-xs font-semibold rounded-2xl border border-gray-200 peer-checked:border-indigo-600 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 transition">
+                <span id="ipoOwnerP1Name">동호</span>
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="ipoOwner" value="p2" class="peer sr-only">
+              <div class="p-2.5 text-center text-xs font-semibold rounded-2xl border border-gray-200 peer-checked:border-pink-600 peer-checked:bg-pink-50 peer-checked:text-pink-700 transition">
+                <span id="ipoOwnerP2Name">뱁새</span>
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="ipoOwner" value="both" class="peer sr-only" checked>
+              <div class="p-2.5 text-center text-xs font-semibold rounded-2xl border border-gray-200 peer-checked:border-purple-600 peer-checked:bg-purple-50 peer-checked:text-purple-700 transition">
+                함께 👥
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <p class="text-[11px] text-gray-400">청약 시작일과 상장일을 넣으면 두 날짜에 일정이 각각 만들어져요. 하나만 넣어도 돼요.</p>
+
+        <button type="submit" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-bold shadow-md active:scale-[0.98] transition">
+          공모주 일정 추가
+        </button>
+      </form>
+    </div>
+  </div>
+
   <!-- 토스트 알림창 -->
   <div id="toast" class="fixed top-5 max-w-xs w-full bg-gray-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-medium transform -translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50">
     <span id="toastIcon">✨</span>
@@ -696,6 +793,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       { id: 'cat-schedule', name: '약속·일정', emoji: '📅', color: 'indigo' },
       { id: 'cat-todo', name: '할 일', emoji: '✅', color: 'emerald' },
       { id: 'cat-workout', name: '운동 루틴', emoji: '💪', color: 'amber' },
+      { id: 'cat-ipo', name: '공모주 일정', emoji: '📈', color: 'violet' },
       { id: 'cat-bucket', name: '버킷·데이트', emoji: '✨', color: 'pink' }
     ];
 
@@ -2420,7 +2518,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
        - 공유 탭이면 일정 탭으로 돌아가고 true
        - 홈(일정 탭, 모달 없음)이면 false -> 셸이 종료 확인을 띄움
     ---------------------------------------------------- */
-    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats'];
+    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo'];
     const dlModalStack = [];
     function dlModalIsOpen(el) { return !!el && !el.classList.contains('pointer-events-none'); }
     (function trackModals() {
@@ -2517,6 +2615,131 @@ Check your Browserslist config to be sure that your targets are set up correctly
         };
       }
     })();
+  
+    /* ----------------------------------------------------
+       21. 공모주 일정 카테고리 + 공모주 추가 폼
+       - cat-ipo 카테고리가 없으면(기존 설치) 운동 루틴 다음에 끼워 넣고 저장/동기화
+       - 루틴 영역의 공모주 그룹에는 '공모주 추가' 버튼을 항상 표시
+    ---------------------------------------------------- */
+    function ensureIpoCategory() {
+      try {
+        if (typeof categories === 'undefined') return;
+        if (!categories.find(c => c.id === 'cat-ipo')) {
+          const cat = { id: 'cat-ipo', name: '공모주 일정', emoji: '📈', color: 'violet' };
+          const idx = categories.findIndex(c => c.id === 'cat-bucket');
+          if (idx >= 0) categories.splice(idx, 0, cat); else categories.push(cat);
+          if (typeof persistData === 'function') persistData();
+          if (typeof renderCategoryPills === 'function') renderCategoryPills();
+          if (typeof renderRoutineChips === 'function') renderRoutineChips();
+        }
+      } catch (e) { /* 무시 */ }
+    }
+    window.addEventListener('DOMContentLoaded', () => { ensureIpoCategory(); });
+
+    function openIpoModal() {
+      ensureIpoCategory();
+      try {
+        const p1 = document.getElementById('ipoOwnerP1Name');
+        const p2 = document.getElementById('ipoOwnerP2Name');
+        if (p1 && typeof duoProfile !== 'undefined') p1.textContent = duoProfile.p1.name;
+        if (p2 && typeof duoProfile !== 'undefined') p2.textContent = duoProfile.p2.name;
+      } catch (e) { /* 무시 */ }
+      const modal = document.getElementById('modalIpo');
+      if (!modal) return;
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      const content = document.getElementById('modalIpoContent');
+      if (content) requestAnimationFrame(() => content.classList.remove('translate-y-full'));
+    }
+
+    function closeIpoModal() {
+      const modal = document.getElementById('modalIpo');
+      if (!modal) return;
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      const content = document.getElementById('modalIpoContent');
+      if (content) content.classList.add('translate-y-full');
+    }
+
+    function dlIpoFmtNum(n) {
+      const v = Number(n);
+      return (!v || isNaN(v)) ? '' : v.toLocaleString('ko-KR');
+    }
+
+    function handleIpoSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('ipoName').value.trim();
+      if (!name) return;
+      const broker = document.getElementById('ipoBroker').value.trim();
+      const price = document.getElementById('ipoPrice').value;
+      const deposit = document.getElementById('ipoDeposit').value;
+      const subStart = document.getElementById('ipoSubStart').value;
+      const subEnd = document.getElementById('ipoSubEnd').value;
+      const refund = document.getElementById('ipoRefund').value;
+      const listing = document.getElementById('ipoListing').value;
+      const ownerRadio = document.querySelector('input[name="ipoOwner"]:checked');
+      const owner = ownerRadio ? ownerRadio.value : 'both';
+      if (!subStart && !listing) {
+        showToast('청약 시작일이나 상장일 중 하나는 입력해주세요', '⚠️');
+        return;
+      }
+      ensureIpoCategory();
+      const now = Date.now();
+      let firstDate = null;
+      if (listing) {
+        const memo = [broker, subStart ? ('청약 ' + subStart + '~' + (subEnd || subStart)) : ''].filter(Boolean).join(' · ');
+        items.unshift({ id: 'ipo-man-' + now + '-list', title: '공모주 상장: ' + name, date: listing, time: '', memo: memo, owner: owner, categoryId: 'cat-ipo', completed: false, cheers: 0 });
+        firstDate = listing;
+      }
+      if (subStart) {
+        const memo = [
+          broker,
+          price ? ('공모가 ' + dlIpoFmtNum(price) + '원') : '',
+          deposit ? ('균등 증거금 ' + dlIpoFmtNum(deposit) + '원') : '',
+          '청약 ' + subStart + '~' + (subEnd || subStart),
+          refund ? ('환불 ' + refund) : '',
+          listing ? ('상장 ' + listing) : ''
+        ].filter(Boolean).join(' · ');
+        items.unshift({ id: 'ipo-man-' + now + '-sub', title: '공모주 청약 시작: ' + name, date: subStart, time: '', memo: memo, owner: owner, categoryId: 'cat-ipo', completed: false, cheers: 0 });
+        firstDate = subStart;
+      }
+      selectedDate = firstDate;
+      persistData();
+      closeIpoModal();
+      renderDateStrip();
+      renderItems();
+      document.getElementById('ipoForm').reset();
+      showToast('공모주 일정이 등록되었습니다!', '📈');
+    }
+
+    // 루틴 칩 렌더링 교체: 공모주 그룹은 루틴이 없어도 '공모주 추가' 버튼과 함께 항상 표시
+    function renderRoutineChips() {
+      const box = document.getElementById('routineChips');
+      if (!box) return;
+      const filter = (typeof selectedCategoryFilter !== 'undefined') ? selectedCategoryFilter : 'all';
+      const chipHtml = r => {
+        const cat = categories.find(c => c.id === r.categoryId) || { emoji: '💪' };
+        const dot = r.owner === 'p1' ? '#6366F1' : r.owner === 'p2' ? '#EC4899' : '#8B5CF6';
+        return '<button data-routine-id="' + r.id + '" class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-white border border-gray-200 shadow-sm text-xs font-semibold text-gray-700 active:scale-95 transition">' +
+          '<span>' + (cat.emoji || '💪') + '</span>' + escapeHtml(r.title) +
+          '<span class="w-1.5 h-1.5 rounded-full" style="background:' + dot + '"></span></button>';
+      };
+      let out = '';
+      const knownIds = categories.map(c => c.id);
+      categories.forEach(cat => {
+        if (filter !== 'all' && filter !== cat.id) return;
+        const rs = routines.filter(r => r.categoryId === cat.id);
+        const isIpo = cat.id === 'cat-ipo';
+        if (!rs.length && !isIpo) return;
+        out += '<span class="w-full text-[11px] font-bold text-gray-400">' + (cat.emoji || '') + ' ' + escapeHtml(cat.name) + '</span>' + rs.map(chipHtml).join('');
+        if (isIpo) {
+          out += '<button onclick="openIpoModal()" class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-violet-50 border border-dashed border-violet-300 text-xs font-semibold text-violet-600 active:scale-95 transition">＋ 공모주 추가</button>';
+        }
+      });
+      if (filter === 'all') {
+        const orphans = routines.filter(r => !knownIds.includes(r.categoryId));
+        if (orphans.length) out += '<span class="w-full text-[11px] font-bold text-gray-400">📌 기타</span>' + orphans.map(chipHtml).join('');
+      }
+      box.innerHTML = out || '<span class="text-[11px] text-gray-400">이 카테고리에 등록된 루틴이 없어요.</span>';
+    }
   </script>
 </body>
 </html>
