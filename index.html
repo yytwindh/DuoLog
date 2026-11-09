@@ -1751,7 +1751,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       try {
         lastSyncTs = Date.now();
         syncStore.set('duolog_sync_ts', String(lastSyncTs));
-        const payload = await syncEncrypt({ ts: lastSyncTs, data: { items: items, profile: duoProfile, categories: categories, buckets: (typeof buckets !== 'undefined' ? buckets : []), money: (typeof moneySteps !== 'undefined' ? moneySteps : []), routines: (typeof routines !== 'undefined' ? routines : []), feed: (typeof dlFeed !== 'undefined' ? dlFeed : []) } });
+        const payload = await syncEncrypt({ ts: lastSyncTs, data: { items: items, profile: duoProfile, categories: categories, buckets: (typeof buckets !== 'undefined' ? buckets : []), money: (typeof moneySteps !== 'undefined' ? moneySteps : []), feed: (typeof dlFeed !== 'undefined' ? dlFeed : []) } });
         targets.forEach(c => { try { c.publish(syncTopic, payload, { retain: true, qos: 1 }); } catch (e) {} });
       } catch (err) {
         console.warn('동기화 전송 실패:', err);
@@ -1766,7 +1766,6 @@ Check your Browserslist config to be sure that your targets are set up correctly
         if (data && data.categories) categories = data.categories;
         if (data && Array.isArray(data.buckets)) buckets = data.buckets;
         if (data && Array.isArray(data.money)) moneySteps = data.money;
-        if (data && Array.isArray(data.routines)) routines = data.routines;
         lastSyncTs = ts;
         syncStore.set('duolog_sync_ts', String(ts));
         persistData();
@@ -2285,7 +2284,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
 
     function deleteRoutine(id) {
-      try { const tb = dlTombstones(); if (tb.routine.indexOf(id) < 0) tb.routine.push(id); } catch (e) {}
+      try { dlRoutineTbAdd(id); } catch (e) {}
       routines = routines.filter(x => x.id !== id);
       persistData();
       renderRoutineList();
@@ -4989,7 +4988,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       try { localTbRoutine = dlTombstones().routine.slice(); } catch (e) {}
       const r = await _origApplyRemote60.apply(this, arguments);
       try {
-        if (data && Array.isArray(data.routines) && typeof routines !== 'undefined') {
+        if (false) { // 2.9.42: 루틴 계정별 분리로 커플 채널 병합 중단
           const tb = dlTombstones();
           localTbRoutine.forEach(id => { if (tb.routine.indexOf(id) < 0) tb.routine.push(id); });
           routines = routines.filter(x => tb.routine.indexOf(x.id) < 0);
@@ -5026,6 +5025,145 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const b = document.getElementById('annivAddBtn'); if (b) b.textContent = '수정 저장';
       if (t) t.focus();
     }
+  
+    /* ----------------------------------------------------
+       62. 루틴 계정별 분리 (2.9.42)
+       - 계정 전용 채널('duolog-routines-v1-' + 계정ID)에 암호화 보관
+       - 로그인 시 불러와 병합, 변경 시(persistData 감지) 자동 게시
+       - 기기 로컬 캐시는 duolog_routines + 소유 계정 태그(duolog_routines_acct)로 구분
+    ---------------------------------------------------- */
+    let _dlRtKey = null;
+    let _dlRtTopic = null;
+    let _dlRtSeedFor = '';
+    let dlRtLastSent = null;
+    let dlRtLastFetch = 0;
+    function dlRtSeed() { return 'duolog-routines-v1-' + (dlSession ? dlSession.id : ''); }
+    async function dlRtKey() {
+      if (_dlRtKey && _dlRtSeedFor === dlRtSeed()) return _dlRtKey;
+      _dlRtSeedFor = dlRtSeed();
+      _dlRtTopic = null;
+      _dlRtKey = await deriveSyncKey(dlRtSeed());
+      return _dlRtKey;
+    }
+    async function dlRtTopic() {
+      if (_dlRtTopic && _dlRtSeedFor === dlRtSeed()) return _dlRtTopic;
+      _dlRtSeedFor = dlRtSeed();
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(dlRtSeed()));
+      _dlRtTopic = 'duolog/v1/' + Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 40);
+      return _dlRtTopic;
+    }
+    function dlRoutineTb() {
+      try { return JSON.parse(localStorage.getItem('duolog_routines_tb') || '[]'); } catch (e) { return []; }
+    }
+    function dlRoutineTbAdd(id) {
+      const tb = dlRoutineTb();
+      if (tb.indexOf(id) < 0) { tb.push(id); try { localStorage.setItem('duolog_routines_tb', JSON.stringify(tb)); } catch (e) {} }
+    }
+    async function dlRtFetch() {
+      const key = await dlRtKey();
+      const topic = await dlRtTopic();
+      const clients = dlAcctClients();
+      try {
+        const payload = await new Promise(resolve => {
+          let done = false;
+          const finish = v => { if (!done) { done = true; resolve(v); } };
+          let pending = clients.length;
+          clients.forEach(c => {
+            const bail = setTimeout(() => { if (--pending <= 0) finish(null); }, 3500);
+            c.on('connect', () => c.subscribe(topic));
+            c.on('message', async (t, msg) => {
+              clearTimeout(bail);
+              try { finish(await dlAcctDecrypt(key, new TextDecoder().decode(msg))); } catch (e) { finish(null); }
+            });
+            c.on('error', () => { clearTimeout(bail); if (--pending <= 0) finish(null); });
+          });
+          setTimeout(() => finish(null), 9000);
+        });
+        if (!payload) return null;
+        const data = JSON.parse(payload);
+        if (!data || !Array.isArray(data.list)) return null;
+        return data;
+      } finally {
+        clients.forEach(c => { try { c.end(true); } catch (e) {} });
+      }
+    }
+    async function dlRtPublish() {
+      if (!dlSession) return;
+      try {
+        const key = await dlRtKey();
+        const topic = await dlRtTopic();
+        const snap = { list: routines.slice(), tb: dlRoutineTb() };
+        dlRtLastSent = JSON.stringify(snap);
+        const payload = await dlAcctEncrypt(key, JSON.stringify(snap));
+        const clients = dlAcctClients();
+        try {
+          await Promise.all(clients.map(c => new Promise(resolve => {
+            const bail = setTimeout(resolve, 5000);
+            c.on('connect', () => {
+              c.publish(topic, payload, { retain: true, qos: 1 }, () => { clearTimeout(bail); resolve(); });
+            });
+            c.on('error', () => { clearTimeout(bail); resolve(); });
+          })));
+        } finally {
+          clients.forEach(c => { try { c.end(true); } catch (e) {} });
+        }
+      } catch (e) {}
+    }
+    async function dlLoadAccountRoutines() {
+      if (!dlSession) return;
+      dlRtLastFetch = Date.now();
+      const tag = localStorage.getItem('duolog_routines_acct');
+      if (tag && tag !== dlSession.id) {
+        // 다른 계정의 캐시가 남아 있으면 비우고 기본값으로 시작 (채널 데이터가 오면 교체)
+        routines = DEFAULT_ROUTINES.slice();
+        try { localStorage.setItem('duolog_routines_tb', '[]'); } catch (e) {}
+        persistData();
+        if (typeof renderRoutineChips === 'function') renderRoutineChips();
+      }
+      try { localStorage.setItem('duolog_routines_acct', dlSession.id); } catch (e) {}
+      let data = null;
+      try { data = await dlRtFetch(); } catch (e) {}
+      if (data) {
+        const tbSet = new Set([].concat(data.tb || [], dlRoutineTb()));
+        const remoteIds = new Set(data.list.map(r => r.id));
+        const localOnly = routines.filter(r => !remoteIds.has(r.id) && !tbSet.has(r.id));
+        routines = data.list.filter(r => !tbSet.has(r.id)).concat(localOnly);
+        try { localStorage.setItem('duolog_routines_tb', JSON.stringify(Array.from(tbSet))); } catch (e) {}
+        dlRtLastSent = JSON.stringify({ list: routines.slice(), tb: Array.from(tbSet) });
+        persistData();
+        if (typeof renderRoutineChips === 'function') renderRoutineChips();
+        if (typeof renderRoutineList === 'function') renderRoutineList();
+        // 로컬에만 있던 루틴이 합쳐졌으면 내 계정 채널에 다시 올려 다음 기기와 맞춘다
+        if (localOnly.length) dlRtPublish();
+      } else {
+        // 채널이 비어 있으면 현재 로컬 목록을 내 계정의 초기 목록으로 등록
+        dlRtPublish();
+      }
+    }
+    const _origEnterApp62 = dlEnterApp;
+    dlEnterApp = function () {
+      const r = _origEnterApp62.apply(this, arguments);
+      try { dlLoadAccountRoutines(); } catch (e) {}
+      return r;
+    };
+    const _origPersistData62 = persistData;
+    persistData = function () {
+      const r = _origPersistData62.apply(this, arguments);
+      try {
+        if (dlSession && !(typeof syncApplying !== 'undefined' && syncApplying)) {
+          const cur = JSON.stringify({ list: routines, tb: dlRoutineTb() });
+          if (dlRtLastSent !== null && cur !== dlRtLastSent) {
+            dlRtLastSent = cur;
+            clearTimeout(window.__dlRtTimer);
+            window.__dlRtTimer = setTimeout(dlRtPublish, 800);
+          }
+        }
+      } catch (e) {}
+      return r;
+    };
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && dlSession && Date.now() - dlRtLastFetch > 30000) dlLoadAccountRoutines();
+    });
   </script>
 </body>
 </html>
