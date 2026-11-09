@@ -245,7 +245,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     </header>
 
     <!-- 3. 메인 콘텐츠 영역 -->
-    <main class="flex-1 px-5 pt-3 overflow-y-auto no-scrollbar">
+    <main id="scheduleMain" class="flex-1 px-5 pt-3 overflow-y-auto no-scrollbar">
 
       <!-- 보기 필터 칩: [둘 다 보기] [나 (동호)] [상대방 (뱁새)] -->
       <div class="flex items-center justify-between mb-3 bg-gray-100/90 p-1 rounded-2xl text-xs font-medium text-gray-600">
@@ -288,8 +288,6 @@ Check your Browserslist config to be sure that your targets are set up correctly
       <div id="annivBanner" class="hidden mb-3 px-3 py-2 rounded-2xl bg-pink-50 border border-pink-100 text-xs font-semibold text-pink-500"></div>
       <div id="holidayBanner" class="hidden mb-3 px-3 py-2 rounded-2xl bg-red-50 border border-red-100 text-xs font-semibold text-red-500"></div>
 
-      <div id="bucketModeBar" class="hidden mb-3 px-3 py-2 rounded-2xl bg-violet-50 border border-violet-100 text-xs font-semibold text-violet-500">✨ 버킷 모아보기 · 날짜와 상관없이 버킷 전체를 보여줘요</div>
-
       <!-- 일정 / 루틴 목록 영역 -->
       <section class="space-y-3" id="itemsContainer">
         <!-- 일정 카드들이 여기에 렌더링됩니다 -->
@@ -305,9 +303,28 @@ Check your Browserslist config to be sure that your targets are set up correctly
       </div>
     </main>
 
+    <!-- 버킷 전용 뷰 (일정과 무관하게 둘이 하고 싶은 것) -->
+    <main id="bucketMain" class="hidden flex-1 px-5 pt-3 overflow-y-auto no-scrollbar">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-bold text-gray-900">둘만의 버킷 ✨</h2>
+        <button onclick="pickRandomBucket()" class="text-[11px] font-semibold text-violet-600 bg-violet-50 px-2.5 py-1 rounded-full active:scale-95 transition">🎲 뭐 할지 뽑기</button>
+      </div>
+      <div class="flex bg-gray-100 rounded-2xl p-1 mb-4 text-xs font-semibold">
+        <button id="bucketSegTodo" onclick="setBucketView('todo')" class="flex-1 py-1.5 rounded-xl bg-white shadow-sm text-gray-900 transition">앞으로 할 버킷</button>
+        <button id="bucketSegDone" onclick="setBucketView('done')" class="flex-1 py-1.5 rounded-xl text-gray-500 transition">완료한 버킷</button>
+      </div>
+      <section id="bucketList" class="space-y-3"></section>
+      <div id="bucketEmpty" class="hidden flex-col items-center justify-center py-14 text-center">
+        <div class="w-16 h-16 rounded-3xl bg-gray-50 flex items-center justify-center text-3xl mb-3 border border-gray-100">✨</div>
+        <p id="bucketEmptyText" class="text-sm font-semibold text-gray-600">아직 버킷이 없어요</p>
+        <p class="text-xs text-gray-400 mt-1">하단의 '+' 버튼으로 둘이 하고 싶은 걸 적어보세요</p>
+      </div>
+      <div class="h-24"></div>
+    </main>
+
     <!-- 플로팅 액션 버튼 (FAB) -->
     <div class="fixed bottom-20 max-w-md w-full px-5 pointer-events-none flex justify-end z-20">
-      <button onclick="openNewItemModal()" class="pointer-events-auto w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-pink-500 text-white shadow-float flex items-center justify-center active:scale-90 transition-transform duration-200">
+      <button id="fabBtn" onclick="openNewItemModal()" class="pointer-events-auto w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-pink-500 text-white shadow-float flex items-center justify-center active:scale-90 transition-transform duration-200">
         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
       </button>
     </div>
@@ -317,6 +334,10 @@ Check your Browserslist config to be sure that your targets are set up correctly
       <button onclick="switchTab('schedule')" id="nav-schedule" class="flex flex-col items-center gap-1 text-indigo-600">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
         <span>일정 & 할일</span>
+      </button>
+      <button onclick="switchTab('bucket')" id="nav-bucket" class="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-600 font-medium">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+        <span>버킷</span>
       </button>
       
       <button onclick="openProfileModal()" class="flex flex-col items-center gap-1 hover:text-gray-600">
@@ -657,6 +678,30 @@ Check your Browserslist config to be sure that your targets are set up correctly
     </div>
   </div>
 
+  <!-- [모달] 버킷 추가/편집 -->
+  <div id="modalBucket" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+    <div id="modalBucketContent" class="w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl transform translate-y-full sheet-transition max-h-[92vh] overflow-y-auto no-scrollbar">
+      <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4"></div>
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="modalBucketTitle" class="text-lg font-bold text-gray-900">버킷 추가</h3>
+        <button onclick="closeBucketModal()" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">✕</button>
+      </div>
+      <form id="bucketForm" onsubmit="handleBucketSubmit(event)" class="space-y-4">
+        <input type="hidden" id="bucketId">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1.5">하고 싶은 것</label>
+          <input type="text" id="bucketTitle" placeholder="예: 한강에서 요트 타기" class="w-full px-3.5 py-2.5 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 mb-1.5">메모 (선택)</label>
+          <textarea id="bucketMemo" rows="2" placeholder="같이 적어둘 내용이 있으면" class="w-full px-3.5 py-2.5 rounded-2xl border border-gray-200 text-sm focus:outline-none focus:border-indigo-400 resize-none"></textarea>
+        </div>
+        <button type="submit" class="w-full py-3 rounded-2xl bg-indigo-600 text-white text-sm font-bold active:scale-[0.98] transition">저장하기</button>
+        <button type="button" id="bucketDeleteBtn" onclick="deleteBucketFromModal()" class="hidden w-full py-2.5 rounded-2xl bg-rose-50 text-rose-500 text-sm font-semibold active:scale-[0.98] transition">삭제하기</button>
+      </form>
+    </div>
+  </div>
+
   <!-- [모달] 공모주 일정 추가 -->
   <div id="modalIpo" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
     <div id="modalIpoContent" class="w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl transform translate-y-full sheet-transition max-h-[92vh] overflow-y-auto no-scrollbar">
@@ -851,6 +896,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
 
         const savedRoutines = localStorage.getItem('duolog_routines');
         if (savedRoutines) routines = JSON.parse(savedRoutines);
+
+        const savedBuckets = localStorage.getItem('duolog_buckets');
+        if (savedBuckets) buckets = JSON.parse(savedBuckets);
       } catch (err) {
         console.warn('LocalStorage 로드 실패:', err);
       }
@@ -861,6 +909,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         localStorage.setItem('duolog_items', JSON.stringify(items));
         localStorage.setItem('duolog_profile', JSON.stringify(duoProfile));
         localStorage.setItem('duolog_categories', JSON.stringify(categories));
+        try { localStorage.setItem('duolog_buckets', JSON.stringify(typeof buckets !== 'undefined' ? buckets : [])); } catch (e) {}
         localStorage.setItem('duolog_routines', JSON.stringify(routines));
       } catch (err) {
         console.warn('LocalStorage 저장 실패:', err);
@@ -1014,9 +1063,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const emptyState = document.getElementById('emptyState');
       container.innerHTML = '';
 
-      // 1. 날짜 필터링 (버킷 카테고리 모아보기에서는 날짜를 무시하고 전체를 모음)
-      const bucketCollection = (activeNavTab === 'schedule' && selectedCategoryFilter === 'cat-bucket');
-      let filtered = bucketCollection ? items.slice() : items.filter(it => it.date === selectedDate);
+      // 1. 날짜 필터링
+      let filtered = items.filter(it => it.date === selectedDate);
 
       // 2. 유저 필터링
       if (selectedUserFilter === 'p1') {
@@ -1045,9 +1093,6 @@ Check your Browserslist config to be sure that your targets are set up correctly
         emptyState.classList.add('hidden');
         emptyState.classList.remove('flex');
       }
-
-      // 모아보기에서는 날짜 오름차순으로 정렬
-      if (bucketCollection) filtered.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
       // 렌더링
       filtered.forEach(item => {
@@ -1497,12 +1542,12 @@ Check your Browserslist config to be sure that your targets are set up correctly
       if (!targets.length || !syncKey || !syncTopic) return;
       // 데이터를 가져본 적 없는 빈 기기는 절대 전송하지 않는다
       // (빈 상태로 상대 데이터를 덮는 사고 방지; 전부 삭제한 경우는 has_data가 남아 있어 전송됨)
-      if (items.length) syncStore.set('duolog_has_data', '1');
+      if (items.length || (typeof buckets !== 'undefined' && buckets.length)) syncStore.set('duolog_has_data', '1');
       if (!items.length && syncStore.get('duolog_has_data') !== '1') return;
       try {
         lastSyncTs = Date.now();
         syncStore.set('duolog_sync_ts', String(lastSyncTs));
-        const payload = await syncEncrypt({ ts: lastSyncTs, data: { items: items, profile: duoProfile, categories: categories } });
+        const payload = await syncEncrypt({ ts: lastSyncTs, data: { items: items, profile: duoProfile, categories: categories, buckets: (typeof buckets !== 'undefined' ? buckets : []) } });
         targets.forEach(c => { try { c.publish(syncTopic, payload, { retain: true, qos: 1 }); } catch (e) {} });
       } catch (err) {
         console.warn('동기화 전송 실패:', err);
@@ -1515,6 +1560,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         if (data && data.items) items = data.items;
         if (data && data.profile) duoProfile = data.profile;
         if (data && data.categories) categories = data.categories;
+        if (data && Array.isArray(data.buckets)) buckets = data.buckets;
         lastSyncTs = ts;
         syncStore.set('duolog_sync_ts', String(ts));
         persistData();
@@ -2560,7 +2606,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
        - 공유 탭이면 일정 탭으로 돌아가고 true
        - 홈(일정 탭, 모달 없음)이면 false -> 셸이 종료 확인을 띄움
     ---------------------------------------------------- */
-    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo', 'modalTimePicker'];
+    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo', 'modalTimePicker', 'modalBucket'];
     const dlModalStack = [];
     function dlModalIsOpen(el) { return !!el && !el.classList.contains('pointer-events-none'); }
     (function trackModals() {
@@ -2979,28 +3025,165 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
     document.addEventListener('DOMContentLoaded', () => applyRoutineCollapse());
   
+  
     /* ----------------------------------------------------
-       25. 버킷 모아보기 안내 (탭 합치기 후속)
-       - 카테고리 '버킷·데이트'를 고르면 모아보기 안내 바를 띄우고 빈 상태 문구도 바꿈
+       26. 버킷 전용 공간 (일정과 무관한 둘만의 위시리스트)
+       - 데이터: buckets [{id, title, memo, done, createdAt, doneAt}] — 일정(items)과 분리, 동기화 포함
+       - 예정/완료 두 보기, 완료일은 doneAt으로 표시, 🎲 랜덤 뽑기 (커플 앱 데이트 룰렛 방식)
+       - 기존 '버킷·데이트' 카테고리 일정은 버킷으로 자동 이관하고 카테고리는 제거 (normalizeBuckets)
     ---------------------------------------------------- */
-    function dlBucketMode() {
-      return typeof activeNavTab !== 'undefined' && activeNavTab === 'schedule' && selectedCategoryFilter === 'cat-bucket';
+    let buckets = [];
+    let bucketViewMode = 'todo';
+    let dlLastPick = null;
+
+    function dlFmtBucketDate(ts) {
+      try { return formatDate(new Date(ts)); } catch (e) { return ''; }
     }
-    function dlApplyBucketChrome() {
-      const bar = document.getElementById('bucketModeBar');
-      if (bar) bar.classList.toggle('hidden', !dlBucketMode());
-      const es = document.getElementById('emptyState');
-      if (es) {
-        const p = es.querySelector('p');
-        if (p) p.innerText = dlBucketMode() ? '아직 버킷이 비어 있어요' : '선택한 날짜에 일정이 없습니다';
+    function renderBuckets() {
+      const list = document.getElementById('bucketList');
+      if (!list) return;
+      const todo = buckets.filter(b => !b.done);
+      const done = buckets.filter(b => b.done);
+      const segT = document.getElementById('bucketSegTodo');
+      const segD = document.getElementById('bucketSegDone');
+      if (segT) { segT.innerText = '앞으로 할 버킷 ' + todo.length; segT.className = 'flex-1 py-1.5 rounded-xl transition ' + (bucketViewMode === 'todo' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'); }
+      if (segD) { segD.innerText = '완료한 버킷 ' + done.length; segD.className = 'flex-1 py-1.5 rounded-xl transition ' + (bucketViewMode === 'done' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'); }
+      const show = bucketViewMode === 'todo' ? todo : done.slice().sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
+      const empty = document.getElementById('bucketEmpty');
+      if (!show.length) {
+        list.innerHTML = '';
+        if (empty) {
+          empty.classList.remove('hidden');
+          empty.classList.add('flex');
+          const t = document.getElementById('bucketEmptyText');
+          if (t) t.innerText = bucketViewMode === 'todo' ? '아직 버킷이 없어요' : '아직 완료한 버킷이 없어요';
+        }
+        return;
       }
+      if (empty) { empty.classList.add('hidden'); empty.classList.remove('flex'); }
+      list.innerHTML = show.map(b => {
+        const checkCls = b.done ? 'bg-violet-500 border-violet-500 text-white' : 'border-gray-300 text-transparent';
+        const doneInfo = b.done && b.doneAt ? '<p class="text-[11px] font-semibold text-violet-500 mt-1">✓ ' + dlFmtBucketDate(b.doneAt) + ' 완료</p>' : '';
+        const ring = dlLastPick === b.id ? ' ring-2 ring-violet-400' : '';
+        return '<div class="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex items-start gap-3' + ring + '">' +
+          '<button onclick="toggleBucketDone(\'' + b.id + '\')" class="mt-0.5 w-6 h-6 flex-shrink-0 rounded-full border-2 flex items-center justify-center text-xs font-bold ' + checkCls + '">✓</button>' +
+          '<div class="flex-1 min-w-0 cursor-pointer" onclick="openBucketModal(\'' + b.id + '\')">' +
+          '<p class="text-sm font-bold ' + (b.done ? 'text-gray-400 line-through' : 'text-gray-900') + '">' + escapeHtml(b.title) + '</p>' +
+          (b.memo ? '<p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">' + escapeHtml(b.memo) + '</p>' : '') + doneInfo +
+          '</div></div>';
+      }).join('');
     }
-    const _origRenderItems24 = renderItems;
-    renderItems = function () {
-      _origRenderItems24();
-      dlApplyBucketChrome();
+    function setBucketView(mode) { bucketViewMode = mode; renderBuckets(); }
+    function openBucketModal(id) {
+      const modal = document.getElementById('modalBucket');
+      const content = document.getElementById('modalBucketContent');
+      document.getElementById('bucketForm').reset();
+      const b = id ? buckets.find(x => x.id === id) : null;
+      document.getElementById('bucketId').value = b ? b.id : '';
+      document.getElementById('modalBucketTitle').innerText = b ? '버킷 편집' : '버킷 추가';
+      document.getElementById('bucketTitle').value = b ? b.title : '';
+      document.getElementById('bucketMemo').value = b ? (b.memo || '') : '';
+      document.getElementById('bucketDeleteBtn').classList.toggle('hidden', !b);
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      setTimeout(() => { content.classList.remove('translate-y-full'); }, 10);
+    }
+    function closeBucketModal() {
+      const modal = document.getElementById('modalBucket');
+      const content = document.getElementById('modalBucketContent');
+      content.classList.add('translate-y-full');
+      setTimeout(() => { modal.classList.add('opacity-0', 'pointer-events-none'); }, 60);
+    }
+    function handleBucketSubmit(e) {
+      e.preventDefault();
+      const title = document.getElementById('bucketTitle').value.trim();
+      if (!title) { showToast('하고 싶은 것을 적어주세요', '✨'); return; }
+      const memo = document.getElementById('bucketMemo').value.trim();
+      const id = document.getElementById('bucketId').value;
+      if (id) {
+        const b = buckets.find(x => x.id === id);
+        if (b) { b.title = title; b.memo = memo; }
+        showToast('버킷이 수정되었습니다!', '✏️');
+      } else {
+        buckets.unshift({ id: 'bk-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), title: title, memo: memo, done: false, createdAt: Date.now(), doneAt: null });
+        showToast('버킷이 추가되었습니다!', '✨');
+      }
+      persistData();
+      closeBucketModal();
+      renderBuckets();
+    }
+    function deleteBucketFromModal() {
+      const id = document.getElementById('bucketId').value;
+      if (!id) return;
+      buckets = buckets.filter(x => x.id !== id);
+      persistData();
+      closeBucketModal();
+      renderBuckets();
+      showToast('삭제되었습니다', '🗑️');
+    }
+    function toggleBucketDone(id) {
+      const b = buckets.find(x => x.id === id);
+      if (!b) return;
+      b.done = !b.done;
+      b.doneAt = b.done ? Date.now() : null;
+      if (b.done) bucketViewMode = 'todo';
+      persistData();
+      renderBuckets();
+      if (b.done) showToast('버킷 하나 완료! 축하해요', '🎉');
+    }
+    function pickRandomBucket() {
+      const todo = buckets.filter(b => !b.done);
+      if (!todo.length) { showToast('뽑을 버킷이 없어요. 먼저 추가해보세요!', '✨'); return; }
+      const pick = todo[Math.floor(Math.random() * todo.length)];
+      dlLastPick = pick.id;
+      bucketViewMode = 'todo';
+      renderBuckets();
+      showToast('오늘은 이거 어때요? — ' + pick.title, '🎲');
+    }
+    function normalizeBuckets() {
+      let changed = false;
+      const moved = items.filter(it => it.categoryId === 'cat-bucket');
+      if (moved.length) {
+        const keys = new Set(buckets.map(b => b.title + '|' + (b.memo || '') + '|' + (b.done ? '1' : '0')));
+        moved.forEach(it => {
+          const key = it.title + '|' + (it.memo || '') + '|' + (it.completed ? '1' : '0');
+          if (!keys.has(key)) {
+            buckets.unshift({ id: 'bk-mig-' + it.id, title: it.title, memo: it.memo || '', done: !!it.completed, createdAt: Date.now(), doneAt: null });
+            keys.add(key);
+          }
+        });
+        items = items.filter(it => it.categoryId !== 'cat-bucket');
+        changed = true;
+      }
+      if (categories.some(c => c.id === 'cat-bucket')) {
+        categories = categories.filter(c => c.id !== 'cat-bucket');
+        changed = true;
+      }
+      if (selectedCategoryFilter === 'cat-bucket') selectedCategoryFilter = 'all';
+      if (changed) { persistData(); renderCategoryPills(); renderItems(); }
+    }
+    const _origSwitchTab25 = switchTab;
+    switchTab = function (tab) {
+      if (tab === 'shared') tab = 'bucket';
+      _origSwitchTab25(tab);
+      const sm = document.getElementById('scheduleMain');
+      const bm = document.getElementById('bucketMain');
+      if (sm) sm.classList.toggle('hidden', tab === 'bucket');
+      if (bm) bm.classList.toggle('hidden', tab !== 'bucket');
+      [['schedule', 'nav-schedule'], ['bucket', 'nav-bucket']].forEach(pair => {
+        const btn = document.getElementById(pair[1]);
+        if (btn) btn.className = 'flex flex-col items-center gap-1 ' + (pair[0] === tab ? 'text-indigo-600 font-bold' : 'text-gray-400 hover:text-gray-600 font-medium');
+      });
+      const fab = document.getElementById('fabBtn');
+      if (fab) fab.onclick = tab === 'bucket' ? function () { openBucketModal(); } : function () { openNewItemModal(); };
+      if (tab === 'bucket') renderBuckets();
     };
-    document.addEventListener('DOMContentLoaded', () => dlApplyBucketChrome());
+    const _origApplyRemote25 = applyRemoteData;
+    applyRemoteData = function (ts, data) {
+      _origApplyRemote25(ts, data);
+      normalizeBuckets();
+      renderBuckets();
+    };
+    document.addEventListener('DOMContentLoaded', () => { normalizeBuckets(); renderBuckets(); });
   </script>
 </body>
 </html>
