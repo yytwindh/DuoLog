@@ -1353,10 +1353,6 @@ Check your Browserslist config to be sure that your targets are set up correctly
                 <span class="text-[11px] font-semibold">${item.cheers || 0}</span>
               </button>
 
-              <!-- 빠른 변경/이동/삭제 드롭다운 대체 버튼 -->
-              <button onclick="quickMoveItem('${item.id}')" title="담당자 변경(이동)" class="p-1.5 rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
-              </button>
               
               <button onclick="openEditItemModal('${item.id}')" title="편집" class="p-1.5 rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
@@ -5052,6 +5048,10 @@ Check your Browserslist config to be sure that your targets are set up correctly
       _dlRtTopic = 'duolog/v1/' + Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 40);
       return _dlRtTopic;
     }
+    function dlIsPristineDefault(r) {
+      const d = DEFAULT_ROUTINES.find(x => x.id === r.id);
+      return !!d && d.title === r.title && d.owner === r.owner && d.categoryId === r.categoryId && (d.time || '') === (r.time || '');
+    }
     function dlRoutineTb() {
       try { return JSON.parse(localStorage.getItem('duolog_routines_tb') || '[]'); } catch (e) { return []; }
     }
@@ -5114,8 +5114,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       dlRtLastFetch = Date.now();
       const tag = localStorage.getItem('duolog_routines_acct');
       if (tag && tag !== dlSession.id) {
-        // 다른 계정의 캐시가 남아 있으면 비우고 기본값으로 시작 (채널 데이터가 오면 교체)
-        routines = DEFAULT_ROUTINES.slice();
+        // 다른 계정의 캐시가 남아 있으면 비우고 빈 목록으로 시작 (채널 데이터가 오면 교체)
+        routines = [];
         try { localStorage.setItem('duolog_routines_tb', '[]'); } catch (e) {}
         persistData();
         if (typeof renderRoutineChips === 'function') renderRoutineChips();
@@ -5126,7 +5126,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       if (data) {
         const tbSet = new Set([].concat(data.tb || [], dlRoutineTb()));
         const remoteIds = new Set(data.list.map(r => r.id));
-        const localOnly = routines.filter(r => !remoteIds.has(r.id) && !tbSet.has(r.id));
+        const localPristine = routines.length === DEFAULT_ROUTINES.length && routines.every(dlIsPristineDefault);
+        const localOnly = localPristine ? [] : routines.filter(r => !remoteIds.has(r.id) && !tbSet.has(r.id));
         routines = data.list.filter(r => !tbSet.has(r.id)).concat(localOnly);
         try { localStorage.setItem('duolog_routines_tb', JSON.stringify(Array.from(tbSet))); } catch (e) {}
         dlRtLastSent = JSON.stringify({ list: routines.slice(), tb: Array.from(tbSet) });
@@ -5136,7 +5137,14 @@ Check your Browserslist config to be sure that your targets are set up correctly
         // 로컬에만 있던 루틴이 합쳐졌으면 내 계정 채널에 다시 올려 다음 기기와 맞춘다
         if (localOnly.length) dlRtPublish();
       } else {
-        // 채널이 비어 있으면 현재 로컬 목록을 내 계정의 초기 목록으로 등록
+        // 채널이 비어 있으면: 손대지 않은 기본 5개뿐이면 '등록한 것 없음'으로 보고 0개로 시작 (동호 지시),
+        // 그 외(직접 추가·수정한 목록)면 현재 로컬 목록을 내 계정의 초기 목록으로 등록
+        const localPristine = routines.length === DEFAULT_ROUTINES.length && routines.every(dlIsPristineDefault);
+        if (localPristine) {
+          routines = [];
+          persistData();
+          if (typeof renderRoutineChips === 'function') renderRoutineChips();
+        }
         dlRtPublish();
       }
     }
