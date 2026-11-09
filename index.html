@@ -271,11 +271,17 @@ Check your Browserslist config to be sure that your targets are set up correctly
       <!-- 자주 쓰는 루틴 빠른 추가 (운동&루틴 탭에서만 표시) -->
       <div id="routineQuickBar" class="hidden mb-4">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-bold text-gray-700">자주 쓰는 루틴</span>
+          <button onclick="toggleRoutineCollapse()" class="flex items-center gap-1.5 active:scale-95 transition">
+            <span class="text-xs font-bold text-gray-700">자주 쓰는 루틴</span>
+            <span id="routineSummary" class="text-[11px] font-medium text-gray-400"></span>
+            <span id="routineChevron" class="text-gray-400 text-[10px] inline-block transition-transform duration-200">▾</span>
+          </button>
           <button onclick="openRoutineManager()" class="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full active:scale-95 transition">루틴 편집</button>
         </div>
-        <div id="routineChips" class="flex flex-wrap items-center gap-2 py-0.5"></div>
-        <p class="text-[10px] text-gray-300 mt-1.5">누르면 선택한 날짜에 바로 추가돼요</p>
+        <div id="routineBody">
+          <div id="routineChips" class="flex flex-wrap items-center gap-2 py-0.5"></div>
+          <p class="text-[10px] text-gray-300 mt-1.5">누르면 선택한 날짜에 바로 추가돼요</p>
+        </div>
       </div>
 
       <!-- 선택한 날짜가 공휴일이면 표시되는 배너 -->
@@ -909,7 +915,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         const isToday = dateStr === formatDate(new Date());
 
         // 해당 날짜에 일정이 있는지 체크 점(dot) 표시
-        const hasEvents = items.some(it => it.date === dateStr);
+        const hasEvents = items.some(it => it.date === dateStr && dlOwnerVisible(it));
 
         const btn = document.createElement('button');
         btn.onclick = () => selectDate(dateStr);
@@ -1712,7 +1718,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         const isSel = ds === selectedDate;
         const isToday = ds === todayStr;
         const dow = d.getDay();
-        const dayItems = items.filter(it => it.date === ds);
+        const dayItems = items.filter(it => it.date === ds && dlOwnerVisible(it));
         const holName = (typeof getHoliday === 'function') ? getHoliday(ds) : null;
         let dots = '';
         dayItems.slice(0, 3).forEach(it => {
@@ -2923,6 +2929,53 @@ Check your Browserslist config to be sure that your targets are set up correctly
       }
       _origHandleItemSubmit21(e);
     };
+  
+    /* ----------------------------------------------------
+       24. 루틴 접기/펼치기 + 달력 점 소유자 필터 연동
+       - 루틴 섹션은 기본 접힘, 펼침/접힘 상태는 이 폰에만 저장 (동기화 제외)
+       - 월간·주간 달력의 점은 둘 다 함께/동호/뱁새 필터를 그대로 따라감 (목록과 동일 기준)
+    ---------------------------------------------------- */
+    function dlRoutinesCollapsed() {
+      try {
+        const v = localStorage.getItem('duolog_routines_collapsed');
+        return v === null ? true : v === '1';
+      } catch (e) { return true; }
+    }
+    function applyRoutineCollapse() {
+      const body = document.getElementById('routineBody');
+      if (!body) return;
+      const collapsed = dlRoutinesCollapsed();
+      body.style.display = collapsed ? 'none' : '';
+      const chev = document.getElementById('routineChevron');
+      if (chev) chev.style.transform = collapsed ? 'rotate(-90deg)' : '';
+      const sum = document.getElementById('routineSummary');
+      if (sum) {
+        const n = (typeof routines !== 'undefined' && Array.isArray(routines)) ? routines.length : 0;
+        sum.innerText = collapsed ? (n + '개') : '';
+      }
+    }
+    function toggleRoutineCollapse() {
+      const next = !dlRoutinesCollapsed();
+      try { localStorage.setItem('duolog_routines_collapsed', next ? '1' : '0'); } catch (e) {}
+      applyRoutineCollapse();
+    }
+    function dlOwnerVisible(it) {
+      if (selectedUserFilter === 'p1') return it.owner === 'p1' || it.owner === 'both';
+      if (selectedUserFilter === 'p2') return it.owner === 'p2' || it.owner === 'both';
+      return true;
+    }
+    const _origSetUserFilter23 = setUserFilter;
+    setUserFilter = function (filter) {
+      _origSetUserFilter23(filter);
+      renderDateStrip();
+      if (viewMode === 'month' && typeof renderMonthView === 'function') renderMonthView();
+    };
+    const _origRenderRoutineChips23 = renderRoutineChips;
+    renderRoutineChips = function () {
+      _origRenderRoutineChips23();
+      applyRoutineCollapse();
+    };
+    document.addEventListener('DOMContentLoaded', () => applyRoutineCollapse());
   </script>
 </body>
 </html>
