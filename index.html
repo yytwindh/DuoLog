@@ -388,7 +388,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   <!-- ======================= MODALS & BOTTOM SHEETS ======================= -->
 
   <!-- [모달 1] 새 일정 / 루틴 / 할일 추가 바텀 시트 -->
-  <div id="modalItem" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+  <div id="modalItem" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300">
     <div id="modalItemContent" class="w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl transform translate-y-full sheet-transition max-h-[92vh] overflow-y-auto no-scrollbar">
       
       <!-- 시트 헤더 / 드래그 핸들 -->
@@ -504,7 +504,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- [모달 2] 새 카테고리(목록) 추가 모달 -->
-  <div id="modalAddCategory" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+  <div id="modalAddCategory" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
       <h3 class="text-base font-bold text-gray-900 mb-1">새로운 목록 만들기</h3>
       <p class="text-xs text-gray-500 mb-4">식단, 쇼핑, 취미 등 둘만의 맞춤 목록을 추가하세요.</p>
@@ -589,7 +589,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
 
 
   <!-- 건의함 모달 (2.9.39) -->
-  <div id="modalSuggest" class="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+  <div id="modalSuggest" class="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300">
     <div class="absolute inset-0" onclick="closeSuggest()"></div>
     <div id="modalSuggestContent" class="bg-white w-full max-w-md rounded-t-[2rem] p-6 pb-10 transform translate-y-full transition-transform duration-300 ease-out relative max-h-[88vh] overflow-y-auto shadow-2xl">
       <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
@@ -614,7 +614,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- 알림 모달 (2.9.36) -->
-  <div id="modalNotifs" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+  <div id="modalNotifs" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300">
     <div class="absolute inset-0" onclick="closeNotifs()"></div>
     <div id="modalNotifsContent" class="bg-white w-full max-w-md rounded-t-[2rem] p-6 pb-10 transform translate-y-full transition-transform duration-300 ease-out relative max-h-[85vh] overflow-y-auto shadow-2xl">
       <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
@@ -627,7 +627,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- 전체 계정 목록 (개발자용, 2.9.33) -->
-  <div id="modalAccounts" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+  <div id="modalAccounts" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
       <div class="flex items-center justify-between mb-1">
         <h3 class="text-base font-bold text-gray-900">가입 계정 목록</h3>
@@ -638,7 +638,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     </div>
   </div>
 
-  <div id="modalProfile" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+  <div id="modalProfile" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-base font-bold text-gray-900">우리 둘의 프로필 설정</h3>
@@ -719,7 +719,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- [모달 4] 간이 통계 & 진행 현황 뷰 -->
-  <div id="modalStats" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+  <div id="modalStats" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-base font-bold text-gray-900">이번 주 함께한 요약 📊</h3>
@@ -766,7 +766,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- [모달] 자주 쓰는 루틴 관리 -->
-  <div id="modalRoutines" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+  <div id="modalRoutines" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
       <div class="flex items-center justify-between mb-2">
         <h3 class="text-base font-bold text-gray-900">자주 쓰는 루틴 편집</h3>
@@ -791,7 +791,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- [모달] 일정 댓글 -->
-  <div id="modalComments" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+  <div id="modalComments" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
       <div class="flex items-center justify-between mb-1">
         <h3 class="text-base font-bold text-gray-900">댓글</h3>
@@ -811,7 +811,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- [모달] 반복 일정 삭제 선택 -->
-  <div id="modalRepeatDelete" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+  <div id="modalRepeatDelete" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
       <h3 class="text-base font-bold text-gray-900 mb-1">반복 일정 삭제</h3>
       <p class="text-xs text-gray-500 mb-4">이 일정은 반복 일정이에요. 어떻게 삭제할까요?</p>
@@ -824,7 +824,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- [모달] 머니로드 스텝 추가/편집 -->
-  <div id="modalMoney" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+  <div id="modalMoney" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300">
     <div id="modalMoneyContent" class="w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl transform translate-y-full sheet-transition max-h-[92vh] overflow-y-auto no-scrollbar">
       <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4"></div>
       <div class="flex items-center justify-between mb-4">
@@ -859,7 +859,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- [모달] 버킷 추가/편집 -->
-  <div id="modalBucket" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+  <div id="modalBucket" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300">
     <div id="modalBucketContent" class="w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl transform translate-y-full sheet-transition max-h-[92vh] overflow-y-auto no-scrollbar">
       <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4"></div>
       <div class="flex items-center justify-between mb-4">
@@ -892,7 +892,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- [모달] 공모주 일정 추가 -->
-  <div id="modalIpo" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+  <div id="modalIpo" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300">
     <div id="modalIpoContent" class="w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl transform translate-y-full sheet-transition max-h-[92vh] overflow-y-auto no-scrollbar">
       <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4"></div>
       <div class="flex items-center justify-between mb-4">
@@ -988,7 +988,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- [모달] 시간 휠 피커 -->
-  <div id="modalTimePicker" class="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+  <div id="modalTimePicker" class="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300">
     <div id="modalTimePickerContent" class="w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl transform translate-y-full sheet-transition">
       <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4"></div>
       <div class="flex items-center justify-between mb-2">
