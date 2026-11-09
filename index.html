@@ -2421,6 +2421,58 @@ Check your Browserslist config to be sure that your targets are set up correctly
       document.addEventListener('pointerup', onUp);
       document.addEventListener('pointercancel', onUp);
     }
+  
+    /* ----------------------------------------------------
+       19. 뒤로가기 처리 (안드로이드 셸이 호출)
+       - 열린 모달이 있으면 가장 최근 것부터 닫고 true
+       - 공유 탭이면 일정 탭으로 돌아가고 true
+       - 홈(일정 탭, 모달 없음)이면 false -> 셸이 종료 확인을 띄움
+    ---------------------------------------------------- */
+    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats'];
+    const dlModalStack = [];
+    function dlModalIsOpen(el) { return !!el && !el.classList.contains('pointer-events-none'); }
+    (function trackModals() {
+      const obs = new MutationObserver(muts => {
+        muts.forEach(m => {
+          const el = m.target;
+          const i = dlModalStack.indexOf(el.id);
+          if (dlModalIsOpen(el)) {
+            if (i >= 0) dlModalStack.splice(i, 1);
+            dlModalStack.push(el.id);
+          } else if (i >= 0) {
+            dlModalStack.splice(i, 1);
+          }
+        });
+      });
+      DL_MODAL_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+      });
+    })();
+
+    window.duologHandleBack = function () {
+      while (dlModalStack.length) {
+        const id = dlModalStack[dlModalStack.length - 1];
+        const el = document.getElementById(id);
+        if (dlModalIsOpen(el)) {
+          el.classList.add('opacity-0', 'pointer-events-none');
+          return true;
+        }
+        dlModalStack.pop();
+      }
+      for (const id of DL_MODAL_IDS) {
+        const el = document.getElementById(id);
+        if (dlModalIsOpen(el)) {
+          el.classList.add('opacity-0', 'pointer-events-none');
+          return true;
+        }
+      }
+      if (typeof activeNavTab !== 'undefined' && activeNavTab !== 'schedule') {
+        switchTab('schedule');
+        return true;
+      }
+      return false;
+    };
   </script>
 </body>
 </html>
