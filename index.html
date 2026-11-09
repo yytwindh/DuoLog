@@ -2719,7 +2719,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const now = Date.now();
       let firstDate = null;
       if (listing) {
-        const memo = [broker, subStart ? ('청약 ' + subStart + '~' + (subEnd || subStart)) : ''].filter(Boolean).join(' · ');
+        const memo = broker;
         items.unshift({ id: 'ipo-man-' + now + '-list', title: '공모주 상장: ' + name, date: listing, time: '', memo: memo, owner: owner, categoryId: 'cat-ipo', completed: false, cheers: 0 });
         firstDate = listing;
       }
