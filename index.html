@@ -288,6 +288,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       <div id="annivBanner" class="hidden mb-3 px-3 py-2 rounded-2xl bg-pink-50 border border-pink-100 text-xs font-semibold text-pink-500"></div>
       <div id="holidayBanner" class="hidden mb-3 px-3 py-2 rounded-2xl bg-red-50 border border-red-100 text-xs font-semibold text-red-500"></div>
 
+      <div id="bucketModeBar" class="hidden mb-3 px-3 py-2 rounded-2xl bg-violet-50 border border-violet-100 text-xs font-semibold text-violet-500">✨ 버킷 모아보기 · 날짜와 상관없이 버킷 전체를 보여줘요</div>
+
       <!-- 일정 / 루틴 목록 영역 -->
       <section class="space-y-3" id="itemsContainer">
         <!-- 일정 카드들이 여기에 렌더링됩니다 -->
@@ -317,10 +319,6 @@ Check your Browserslist config to be sure that your targets are set up correctly
         <span>일정 & 할일</span>
       </button>
       
-      <button onclick="switchTab('shared')" id="nav-shared" class="flex flex-col items-center gap-1 hover:text-gray-600">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
-        <span>둘만의 버킷</span>
-      </button>
       <button onclick="openProfileModal()" class="flex flex-col items-center gap-1 hover:text-gray-600">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
         <span>설정</span>
@@ -1016,8 +1014,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const emptyState = document.getElementById('emptyState');
       container.innerHTML = '';
 
-      // 1. 날짜 필터링
-      let filtered = items.filter(it => it.date === selectedDate);
+      // 1. 날짜 필터링 (버킷 카테고리 모아보기에서는 날짜를 무시하고 전체를 모음)
+      const bucketCollection = (activeNavTab === 'schedule' && selectedCategoryFilter === 'cat-bucket');
+      let filtered = bucketCollection ? items.slice() : items.filter(it => it.date === selectedDate);
 
       // 2. 유저 필터링
       if (selectedUserFilter === 'p1') {
@@ -1046,6 +1045,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
         emptyState.classList.add('hidden');
         emptyState.classList.remove('flex');
       }
+
+      // 모아보기에서는 날짜 오름차순으로 정렬
+      if (bucketCollection) filtered.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
       // 렌더링
       filtered.forEach(item => {
@@ -2976,6 +2978,29 @@ Check your Browserslist config to be sure that your targets are set up correctly
       applyRoutineCollapse();
     };
     document.addEventListener('DOMContentLoaded', () => applyRoutineCollapse());
+  
+    /* ----------------------------------------------------
+       25. 버킷 모아보기 안내 (탭 합치기 후속)
+       - 카테고리 '버킷·데이트'를 고르면 모아보기 안내 바를 띄우고 빈 상태 문구도 바꿈
+    ---------------------------------------------------- */
+    function dlBucketMode() {
+      return typeof activeNavTab !== 'undefined' && activeNavTab === 'schedule' && selectedCategoryFilter === 'cat-bucket';
+    }
+    function dlApplyBucketChrome() {
+      const bar = document.getElementById('bucketModeBar');
+      if (bar) bar.classList.toggle('hidden', !dlBucketMode());
+      const es = document.getElementById('emptyState');
+      if (es) {
+        const p = es.querySelector('p');
+        if (p) p.innerText = dlBucketMode() ? '아직 버킷이 비어 있어요' : '선택한 날짜에 일정이 없습니다';
+      }
+    }
+    const _origRenderItems24 = renderItems;
+    renderItems = function () {
+      _origRenderItems24();
+      dlApplyBucketChrome();
+    };
+    document.addEventListener('DOMContentLoaded', () => dlApplyBucketChrome());
   </script>
 </body>
 </html>
