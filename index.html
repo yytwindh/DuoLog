@@ -4168,6 +4168,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       if (typeof renderProfileUI === 'function') renderProfileUI();
       if (typeof renderItems === 'function') renderItems();
       dlRenderAccountBox();
+      dlFillProfileForm();
       try { dlApplyProfileOwnership(); } catch (e) {}
       showToast('내 자리가 연결됐어요', dlSession.emoji);
     }
@@ -4334,6 +4335,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
         persistData();
         if (typeof renderProfileUI === 'function') renderProfileUI();
         dlRenderAccountBox();
+        dlFillProfileForm();
+        showToast('🔗 ' + dlSession.name + ' 자리로 연결됐어요', dlSession.emoji);
       } catch (e) {}
     }
     const _origEnterApp48 = dlEnterApp;
@@ -4347,6 +4350,20 @@ Check your Browserslist config to be sure that your targets are set up correctly
       try { dlAutoBind(); } catch (e) {}
       return r;
     };
+  
+    /* ----------------------------------------------------
+       50. 프로필 폼 즉시 반영 (2.9.35): 연결·자동 연결로 바뀐 이름/이모지를
+       열려 있는 프로필 설정 폼 입력칸에도 바로 채워 넣음
+    ---------------------------------------------------- */
+    function dlFillProfileForm() {
+      try {
+        const f = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+        f('profP1Name', duoProfile.p1.name);
+        f('profP1Emoji', duoProfile.p1.emoji);
+        f('profP2Name', duoProfile.p2.name);
+        f('profP2Emoji', duoProfile.p2.emoji);
+      } catch (e) {}
+    }
   </script>
 </body>
 </html>
