@@ -210,6 +210,10 @@ Check your Browserslist config to be sure that your targets are set up correctly
           <button onclick="goToToday()" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 active:scale-95 transition hover:bg-gray-200">
             오늘
           </button>
+          <button onclick="openNotifs()" class="relative w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:scale-95 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+            <span id="notifBadge" style="display:none" class="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold items-center justify-center shadow">0</span>
+          </button>
           <button onclick="openStatsModal()" class="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:scale-95 transition">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
           </button>
@@ -578,6 +582,20 @@ Check your Browserslist config to be sure that your targets are set up correctly
     </div>
   </div>
 
+
+
+  <!-- 알림 모달 (2.9.36) -->
+  <div id="modalNotifs" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="absolute inset-0" onclick="closeNotifs()"></div>
+    <div id="modalNotifsContent" class="bg-white w-full max-w-md rounded-t-[2rem] p-6 pb-10 transform translate-y-full transition-transform duration-300 ease-out relative max-h-[85vh] overflow-y-auto shadow-2xl">
+      <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-gray-800 text-base">🔔 알림</h3>
+        <button onclick="closeNotifs()" class="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:text-gray-600 text-xs">✕</button>
+      </div>
+      <div id="notifList" class="space-y-2"></div>
+    </div>
+  </div>
 
   <!-- 전체 계정 목록 (개발자용, 2.9.33) -->
   <div id="modalAccounts" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-4">
@@ -1708,7 +1726,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       try {
         lastSyncTs = Date.now();
         syncStore.set('duolog_sync_ts', String(lastSyncTs));
-        const payload = await syncEncrypt({ ts: lastSyncTs, data: { items: items, profile: duoProfile, categories: categories, buckets: (typeof buckets !== 'undefined' ? buckets : []), money: (typeof moneySteps !== 'undefined' ? moneySteps : []) } });
+        const payload = await syncEncrypt({ ts: lastSyncTs, data: { items: items, profile: duoProfile, categories: categories, buckets: (typeof buckets !== 'undefined' ? buckets : []), money: (typeof moneySteps !== 'undefined' ? moneySteps : []), feed: (typeof dlFeed !== 'undefined' ? dlFeed : []) } });
         targets.forEach(c => { try { c.publish(syncTopic, payload, { retain: true, qos: 1 }); } catch (e) {} });
       } catch (err) {
         console.warn('동기화 전송 실패:', err);
@@ -2802,7 +2820,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
        - 공유 탭이면 일정 탭으로 돌아가고 true
        - 홈(일정 탭, 모달 없음)이면 false -> 셸이 종료 확인을 띄움
     ---------------------------------------------------- */
-    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo', 'modalTimePicker', 'modalBucket', 'modalMoney', 'modalAccounts'];
+    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo', 'modalTimePicker', 'modalBucket', 'modalMoney', 'modalAccounts', 'modalNotifs'];
     const dlModalStack = [];
     function dlModalIsOpen(el) { return !!el && !el.classList.contains('pointer-events-none'); }
     (function trackModals() {
@@ -4364,6 +4382,292 @@ Check your Browserslist config to be sure that your targets are set up correctly
         f('profP2Emoji', duoProfile.p2.emoji);
       } catch (e) {}
     }
+  
+    /* ----------------------------------------------------
+       51. 권한: 자기 것만 변경 (2.9.36)
+    ---------------------------------------------------- */
+    function dlOtherSlot() { return dlMySlot() === 'p1' ? 'p2' : 'p1'; }
+    function dlCanModifyItem(item) { return !!item && (item.owner === 'both' || item.owner === dlMySlot()); }
+    function dlBlockToast() { showToast('남의 일정은 변경할 수 없어요', '🔒'); }
+    function dlFixOwnerOptions() {
+      try {
+        const other = dlOtherSlot();
+        document.querySelectorAll('input[name="owner"]').forEach(inp => {
+          const label = inp.closest('label');
+          if (!label) return;
+          if (inp.value === other) {
+            label.style.display = 'none';
+            if (inp.checked) {
+              const my = document.querySelector('input[name="owner"][value="' + dlMySlot() + '"]');
+              if (my) my.checked = true;
+            }
+          } else {
+            label.style.display = '';
+          }
+        });
+        const s1 = document.getElementById('formOwnerP1Name'); if (s1) s1.innerText = duoProfile.p1.name;
+        const s2 = document.getElementById('formOwnerP2Name'); if (s2) s2.innerText = duoProfile.p2.name;
+      } catch (e) {}
+    }
+    const _origOpenNew51 = openNewItemModal;
+    openNewItemModal = function () { const r = _origOpenNew51.apply(this, arguments); dlFixOwnerOptions(); return r; };
+    const _origOpenEdit51 = openEditItemModal;
+    openEditItemModal = function (id) {
+      const item = items.find(i => i.id === id);
+      if (item && !dlCanModifyItem(item)) { dlBlockToast(); return; }
+      const r = _origOpenEdit51.apply(this, arguments);
+      dlFixOwnerOptions();
+      return r;
+    };
+    const _origItemSubmit51 = handleItemSubmit;
+    handleItemSubmit = function (e) { dlFixOwnerOptions(); return _origItemSubmit51.apply(this, arguments); };
+    const _origDeleteItem51 = deleteItem;
+    deleteItem = function (id) {
+      const item = items.find(i => i.id === id);
+      if (item && !dlCanModifyItem(item)) { dlBlockToast(); return; }
+      return _origDeleteItem51.apply(this, arguments);
+    };
+    const _origQuickMove51 = quickMoveItem;
+    quickMoveItem = function (id) {
+      const item = items.find(i => i.id === id);
+      if (item && !dlCanModifyItem(item)) { dlBlockToast(); return; }
+      return _origQuickMove51.apply(this, arguments);
+    };
+    const _origQuickRoutine51 = quickAddRoutine;
+    quickAddRoutine = function (id) {
+      const r = routines.find(x => x.id === id);
+      if (r && r.owner === dlOtherSlot()) { showToast('남의 일정은 추가할 수 없어요', '🔒'); return; }
+      return _origQuickRoutine51.apply(this, arguments);
+    };
+    const _origFillRoutine51 = fillRoutineFormOptions;
+    fillRoutineFormOptions = function () {
+      const r = _origFillRoutine51.apply(this, arguments);
+      try {
+        const sel = document.getElementById('routineOwner');
+        const other = dlOtherSlot();
+        for (let i = sel.options.length - 1; i >= 0; i--) {
+          if (sel.options[i].value === other) sel.remove(i);
+        }
+        if (sel.value === other) sel.value = dlMySlot();
+      } catch (e) {}
+      return r;
+    };
+    const _origOpenComments51 = openComments;
+    openComments = function (id) {
+      const r = _origOpenComments51.apply(this, arguments);
+      try {
+        commentAuthor = dlMySlot();
+        const p = duoProfile[commentAuthor];
+        const box = document.getElementById('commentAuthorChips');
+        if (box && p) {
+          box.innerHTML = '<span class="px-2.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-[11px] font-semibold text-indigo-600">' + p.emoji + ' ' + escapeHtml(p.name) + '</span>';
+        }
+      } catch (e) {}
+      return r;
+    };
+    const _origDeleteComment51 = deleteComment;
+    deleteComment = function (cid) {
+      const it = items.find(x => x.id === commentTargetId);
+      const c = it && it.comments ? it.comments.find(x => x.id === cid) : null;
+      if (c && c.author !== dlMySlot()) { showToast('남의 댓글은 지울 수 없어요', '🔒'); return; }
+      return _origDeleteComment51.apply(this, arguments);
+    };
+  
+    /* ----------------------------------------------------
+       52. 알림 피드 (2.9.36): 상대의 활동을 놓치지 않게 쌓아 둠
+       - 종류: 댓글/응원/새 일정/일정 완료/버킷 추가·완료/머니로드 달성·스텝 추가
+       - 동기화 payload의 feed로 함께 오가며 id 병합으로 유실 방지
+       - 읽음 표시는 기기별 duolog_feed_read
+    ---------------------------------------------------- */
+    let dlFeed = [];
+    try { const _f = JSON.parse(syncStore.get('duolog_feed') || '[]'); if (Array.isArray(_f)) dlFeed = _f; } catch (e) {}
+    function dlFeedSave() {
+      try { syncStore.set('duolog_feed', JSON.stringify(dlFeed.slice(0, 120))); } catch (e) {}
+      dlUpdateNotifBadge();
+    }
+    function dlFeedPush(type, text) {
+      try {
+        dlFeed.unshift({ id: 'f' + Date.now() + Math.floor(Math.random() * 1e4), ts: Date.now(), actor: dlMySlot(), type: type, text: text });
+        dlFeed = dlFeed.slice(0, 120);
+        dlFeedSave();
+      } catch (e) {}
+    }
+    function dlFeedReadTs() { return parseInt(syncStore.get('duolog_feed_read') || '0', 10) || 0; }
+    function dlUnreadCount() {
+      const me = dlMySlot(), rt = dlFeedReadTs();
+      return dlFeed.filter(f => f.actor !== me && f.ts > rt).length;
+    }
+    function dlUpdateNotifBadge() {
+      const b = document.getElementById('notifBadge');
+      if (!b) return;
+      const n = dlUnreadCount();
+      b.innerText = n > 99 ? '99+' : String(n);
+      b.style.display = n ? 'flex' : 'none';
+    }
+    function dlFeedIcon(t) {
+      return { comment: '💬', cheer: '💌', add: '📌', complete: '✅', bucket: '🧺', bucketdone: '🎉', money: '💰', moneydone: '🎊' }[t] || '🔔';
+    }
+    function renderNotifs() {
+      const box = document.getElementById('notifList');
+      if (!box) return;
+      const rt = dlFeedReadTs(), me = dlMySlot();
+      if (!dlFeed.length) {
+        box.innerHTML = '<p class="text-xs text-gray-400 text-center py-8">아직 알림이 없어요.</p>';
+        return;
+      }
+      box.innerHTML = dlFeed.slice(0, 60).map(f => {
+        const p = duoProfile[f.actor] || { name: f.actor, emoji: '👤' };
+        const unread = f.actor !== me && f.ts > rt;
+        return '<div class="flex items-start gap-2.5 rounded-2xl px-3 py-2.5 ' + (unread ? 'bg-indigo-50/70' : 'bg-gray-50') + '">' +
+          '<span class="text-base flex-shrink-0 mt-0.5">' + dlFeedIcon(f.type) + '</span>' +
+          '<div class="flex-1 min-w-0"><p class="text-xs text-gray-700 break-words"><b>' + escapeHtml(p.name) + '</b> ' + escapeHtml(f.text) + '</p>' +
+          '<p class="text-[10px] text-gray-300 mt-0.5">' + (typeof commentTimeText === 'function' ? commentTimeText(f.ts) : '') + '</p></div>' +
+          (unread ? '<span class="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0 mt-1.5"></span>' : '') + '</div>';
+      }).join('');
+    }
+    function openNotifs() {
+      const modal = document.getElementById('modalNotifs');
+      const content = document.getElementById('modalNotifsContent');
+      renderNotifs();
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      setTimeout(() => { content.classList.remove('translate-y-full'); }, 10);
+      try { syncStore.set('duolog_feed_read', String(Date.now())); } catch (e) {}
+      setTimeout(dlUpdateNotifBadge, 60);
+    }
+    function closeNotifs() {
+      const modal = document.getElementById('modalNotifs');
+      const content = document.getElementById('modalNotifsContent');
+      content.classList.add('translate-y-full');
+      setTimeout(() => { modal.classList.add('opacity-0', 'pointer-events-none'); }, 150);
+    }
+    /* ---- 활동 기록 래핑 ---- */
+    const _origAddComment52 = handleAddComment;
+    handleAddComment = function (e) {
+      const it0 = items.find(x => x.id === commentTargetId);
+      const before = it0 && it0.comments ? it0.comments.length : 0;
+      const r = _origAddComment52.apply(this, arguments);
+      try {
+        const it = items.find(x => x.id === commentTargetId);
+        if (it && it.comments && it.comments.length > before) {
+          const c = it.comments[it.comments.length - 1];
+          dlFeedPush('comment', "님이 '" + it.title + "'에 댓글을 남겼어요: " + c.text);
+        }
+      } catch (err) {}
+      return r;
+    };
+    const _origCheer52 = sendCheer;
+    sendCheer = function (ev, id) {
+      const it0 = items.find(x => x.id === id);
+      const before = it0 ? (it0.cheers || 0) : 0;
+      const r = _origCheer52.apply(this, arguments);
+      try {
+        const it = items.find(x => x.id === id);
+        if (it && (it.cheers || 0) > before) dlFeedPush('cheer', "님이 '" + it.title + "'에 응원을 보냈어요");
+      } catch (err) {}
+      return r;
+    };
+    const _origItemSubmit52 = handleItemSubmit;
+    handleItemSubmit = function (e) {
+      const isNew = !document.getElementById('itemId').value;
+      const titleEl = document.getElementById('itemTitle');
+      const title = titleEl ? titleEl.value.trim() : '';
+      const before = items.length;
+      const r = _origItemSubmit52.apply(this, arguments);
+      try {
+        if (isNew && items.length > before && title) dlFeedPush('add', "님이 새 일정을 추가했어요: '" + title + "'");
+      } catch (err) {}
+      return r;
+    };
+    const _origToggle52 = toggleItemComplete;
+    toggleItemComplete = function (id) {
+      const r = _origToggle52.apply(this, arguments);
+      try {
+        const it = items.find(x => x.id === id);
+        if (it && it.completed) dlFeedPush('complete', "님이 '" + it.title + "'을(를) 완료했어요");
+      } catch (err) {}
+      return r;
+    };
+    const _origQuickRoutine52 = quickAddRoutine;
+    quickAddRoutine = function (id) {
+      const before = items.length;
+      const r = _origQuickRoutine52.apply(this, arguments);
+      try {
+        if (items.length > before) {
+          const rt = routines.find(x => x.id === id);
+          if (rt) dlFeedPush('add', "님이 새 일정을 추가했어요: '" + rt.title + "'");
+        }
+      } catch (err) {}
+      return r;
+    };
+    const _origIpo52 = handleIpoSubmit;
+    handleIpoSubmit = function (e) {
+      const nameEl = document.getElementById('ipoName');
+      const name = nameEl ? nameEl.value.trim() : '';
+      const before = items.length;
+      const r = _origIpo52.apply(this, arguments);
+      try {
+        if (items.length > before && name) dlFeedPush('add', "님이 공모주 일정을 추가했어요: '" + name + "'");
+      } catch (err) {}
+      return r;
+    };
+    const _origBucketSubmit52 = handleBucketSubmit;
+    handleBucketSubmit = function (e) {
+      const isNew = !document.getElementById('bucketEditId').value;
+      const tEl = document.getElementById('bucketTitle');
+      const title = tEl ? tEl.value.trim() : '';
+      const r = _origBucketSubmit52.apply(this, arguments);
+      try {
+        if (isNew && title) dlFeedPush('bucket', "님이 새 버킷을 추가했어요: '" + title + "'");
+      } catch (err) {}
+      return r;
+    };
+    const _origBucketDone52 = toggleBucketDone;
+    toggleBucketDone = function (id) {
+      const r = _origBucketDone52.apply(this, arguments);
+      try {
+        const b = buckets.find(x => x.id === id);
+        if (b && b.done) dlFeedPush('bucketdone', "님이 버킷을 완료했어요: '" + b.title + "'");
+      } catch (err) {}
+      return r;
+    };
+    const _origMoneyDone52 = toggleMoneyDone;
+    toggleMoneyDone = function (id, who) {
+      const r = _origMoneyDone52.apply(this, arguments);
+      try {
+        const s = moneySteps.find(x => x.id === id);
+        if (s && s[who + 'Date']) {
+          const idx = moneySteps.indexOf(s);
+          const p = duoProfile[who];
+          dlFeedPush('moneydone', '님이 머니로드 Step ' + idx + ' ' + (p ? p.name : who) + ' 목표를 달성했어요');
+        }
+      } catch (err) {}
+      return r;
+    };
+    const _origMoneySubmit52 = handleMoneySubmit;
+    handleMoneySubmit = function (e) {
+      const isNew = !document.getElementById('moneyEditId').value;
+      const r = _origMoneySubmit52.apply(this, arguments);
+      try {
+        if (isNew) dlFeedPush('money', '님이 머니로드에 새 스텝을 추가했어요');
+      } catch (err) {}
+      return r;
+    };
+    const _origApplyRemote52 = applyRemoteData;
+    applyRemoteData = async function (ts, data) {
+      try {
+        const remoteFeed = data && Array.isArray(data.feed) ? data.feed : [];
+        if (remoteFeed.length) {
+          const byId = new Map();
+          dlFeed.forEach(f => byId.set(f.id, f));
+          remoteFeed.forEach(f => { if (!byId.has(f.id)) byId.set(f.id, f); });
+          dlFeed = Array.from(byId.values()).sort((a, b) => b.ts - a.ts).slice(0, 120);
+        }
+      } catch (err) {}
+      const r = await _origApplyRemote52.apply(this, arguments);
+      try { dlFeedSave(); } catch (err) {}
+      return r;
+    };
+    dlUpdateNotifBadge();
   </script>
 </body>
 </html>
