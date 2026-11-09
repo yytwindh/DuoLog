@@ -249,7 +249,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
           <button onclick="changeMonth(1)" class="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:scale-95 transition text-base">›</button>
         </div>
         <div class="grid grid-cols-7 text-center text-[11px] font-semibold text-gray-400 mb-1">
-          <span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="text-blue-400">토</span><span class="text-red-400">일</span>
+          <span class="text-red-400">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="text-blue-400">토</span>
         </div>
         <div id="monthGrid" class="grid grid-cols-7 gap-1"></div>
         <p class="text-[10px] text-gray-300 mt-1.5 text-right pr-1">칩은 그날 일정의 종류 · 테두리 파랑=동호, 분홍=뱁새, 주황=함께 · 빨간 날짜는 공휴일</p>
@@ -539,31 +539,40 @@ Check your Browserslist config to be sure that your targets are set up correctly
         <h3 class="text-base font-bold text-gray-900">우리 둘의 프로필 설정</h3>
         <button onclick="closeProfileModal()" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
       </div>
-      <p class="text-xs text-gray-500 mb-4">화면에 표시될 서로의 이름과 이모지를 설정하세요.</p>
+      <p class="text-xs text-gray-500 mb-4">이름과 이모지는 각자 자기 폰에서만 바꿀 수 있어요. 동기화되면 서로에게 그대로 보여요.</p>
+      <div class="mb-4">
+        <p class="text-[11px] font-bold text-gray-500 mb-1.5">이 폰을 쓰는 사람</p>
+        <div class="flex gap-2">
+          <button type="button" id="profRoleP1" onclick="setMyRole('p1')" class="flex-1 py-2 rounded-xl border text-xs font-bold transition">💙 동호</button>
+          <button type="button" id="profRoleP2" onclick="setMyRole('p2')" class="flex-1 py-2 rounded-xl border text-xs font-bold transition">🌸 뱁새</button>
+        </div>
+      </div>
       
       <form onsubmit="handleSaveProfile(event)" class="space-y-4">
         <!-- 나 -->
         <div class="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100">
           <div class="flex items-center gap-2 mb-2">
             <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
-            <span class="text-xs font-bold text-indigo-900">나 (파트너 1)</span>
+            <span id="profLabelP1" class="text-xs font-bold text-indigo-900">나 (파트너 1)</span>
           </div>
           <div class="flex gap-2">
             <input type="text" id="profP1Emoji" maxlength="2" value="💙" class="w-12 text-center py-2 bg-white rounded-xl border border-indigo-200 text-sm">
             <input type="text" id="profP1Name" value="동호" required class="flex-1 px-3 py-2 bg-white rounded-xl border border-indigo-200 text-xs font-medium">
           </div>
+          <p id="profNoteP1" class="hidden mt-2 text-[10px] text-gray-400">상대방의 이름·이모지는 상대방 폰에서만 바꿀 수 있어요.</p>
         </div>
 
         <!-- 상대방 -->
         <div class="p-3 bg-pink-50/50 rounded-2xl border border-pink-100">
           <div class="flex items-center gap-2 mb-2">
             <span class="w-2.5 h-2.5 rounded-full bg-pink-600"></span>
-            <span class="text-xs font-bold text-pink-900">상대방 (파트너 2)</span>
+            <span id="profLabelP2" class="text-xs font-bold text-pink-900">상대방 (파트너 2)</span>
           </div>
           <div class="flex gap-2">
             <input type="text" id="profP2Emoji" maxlength="2" value="🌸" class="w-12 text-center py-2 bg-white rounded-xl border border-pink-200 text-sm">
             <input type="text" id="profP2Name" value="뱁새" required class="flex-1 px-3 py-2 bg-white rounded-xl border border-pink-200 text-xs font-medium">
           </div>
+          <p id="profNoteP2" class="hidden mt-2 text-[10px] text-gray-400">상대방의 이름·이모지는 상대방 폰에서만 바꿀 수 있어요.</p>
         </div>
 
         <button type="submit" class="w-full py-3 rounded-2xl bg-indigo-600 text-white font-semibold text-xs active:scale-95 transition">
@@ -1847,7 +1856,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const m = monthCursor.getMonth();
       if (title) title.innerText = y + '년 ' + (m + 1) + '월';
       if (typeof ensureHolidays === 'function') ensureHolidays(y);
-      const startDay = (new Date(y, m, 1).getDay() + 6) % 7; // 월요일 시작 (2.9.22)
+      const startDay = new Date(y, m, 1).getDay(); // 일요일 시작 (2.9.31)
       const lastDate = new Date(y, m + 1, 0).getDate();
       const totalCells = Math.ceil((startDay + lastDate) / 7) * 7;
       const start = new Date(y, m, 1 - startDay);
@@ -1870,7 +1879,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
           const emo = cat ? cat.emoji : '📌';
           const tint = isSel ? 'rgba(255,255,255,0.28)' : (it.owner === 'p1' ? '#C7D2FE' : it.owner === 'p2' ? '#FBCFE8' : '#FDE68A');
           const ring = isSel ? 'rgba(255,255,255,0.95)' : (it.owner === 'p1' ? '#6366F1' : it.owner === 'p2' ? '#EC4899' : '#D97706');
-          dots += '<span style="background:' + tint + ';border:1.5px solid ' + ring + '" class="w-3.5 h-3.5 rounded-md inline-flex items-center justify-center text-[9px] leading-none">' + emo + '</span>';
+          dots += '<span style="background:' + tint + ';border:1.5px solid ' + ring + '" class="w-3.5 h-3.5 shrink-0 overflow-hidden rounded-md inline-flex items-center justify-center text-[8px] leading-none">' + emo + '</span>';
         });
         if (dayItems.length > 3) dots += '<span class="text-[9px] font-semibold ' + (isSel ? 'text-white/80' : 'text-gray-400') + '">+' + (dayItems.length - 3) + '</span>';
         const numCls = isSel ? 'text-white' : (holName ? (other ? 'text-red-300' : 'text-red-500') : (other ? 'text-gray-300' : (dow === 0 ? 'text-red-500' : (dow === 6 ? 'text-blue-500' : 'text-gray-700'))));
@@ -3556,7 +3565,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     let dlWeekAnchor = null;
     function dlMondayOf(dateStr) {
       const d = new Date(dateStr + 'T00:00:00');
-      const dow = (d.getDay() + 6) % 7;
+      const dow = d.getDay(); // 일요일 시작 (2.9.31) — dlMondayOf 이름과 달리 그 주 일요일을 반환
       d.setDate(d.getDate() - dow);
       d.setHours(0, 0, 0, 0);
       return d;
@@ -3815,6 +3824,62 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', dlInitSplit39);
     else dlInitSplit39();
+  
+    /* ----------------------------------------------------
+       44. 프로필 소유권 (2.9.31): 이름·이모지는 각자 자기 폰에서만 변경
+       - 이 폰의 사용자(duolog_my_role)에 따라 프로필 모달에서 내 슬롯만 편집 가능
+       - 동기화 수신 시 내 슬롯은 이 폰의 값을 유지하고, 상대 슬롯만 상대 값을 받아옴
+    ---------------------------------------------------- */
+    function dlMySlot() {
+      const r = (typeof storedRole === 'function') ? storedRole() : '';
+      return r === 'p2' ? 'p2' : 'p1';
+    }
+    function setMyRole(r) {
+      try { syncStore.set('duolog_my_role', r); } catch (e) {}
+      dlApplyProfileOwnership();
+    }
+    function dlApplyProfileOwnership() {
+      const mine = dlMySlot();
+      [['p1', 'profRoleP1'], ['p2', 'profRoleP2']].forEach(function (pair) {
+        const b = document.getElementById(pair[1]);
+        if (!b) return;
+        const p = duoProfile[pair[0]];
+        b.innerHTML = p.emoji + ' ' + escapeHtml(p.name);
+        b.className = 'flex-1 py-2 rounded-xl border text-xs font-bold transition ' + (pair[0] === mine ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200');
+      });
+      [['p1', 'P1'], ['p2', 'P2']].forEach(function (pair) {
+        const isMine = pair[0] === mine;
+        const label = document.getElementById('profLabel' + pair[1]);
+        if (label) label.textContent = (isMine ? '나' : '상대방') + ' (파트너 ' + (pair[0] === 'p1' ? '1' : '2') + ')';
+        ['Name', 'Emoji'].forEach(function (kind) {
+          const inp = document.getElementById('prof' + pair[1] + kind);
+          if (inp) { inp.disabled = !isMine; inp.classList.toggle('opacity-50', !isMine); }
+        });
+        const note = document.getElementById('profNote' + pair[1]);
+        if (note) note.classList.toggle('hidden', isMine);
+      });
+    }
+    const _origOpenProfile44 = openProfileModal;
+    openProfileModal = function () {
+      _origOpenProfile44.apply(this, arguments);
+      try { dlApplyProfileOwnership(); } catch (e) {}
+    };
+    const _origApplyRemote44 = applyRemoteData;
+    applyRemoteData = async function (ts, data) {
+      const mine = dlMySlot();
+      let myBefore = null;
+      try { myBefore = JSON.parse(JSON.stringify(duoProfile[mine])); } catch (e) {}
+      const r = await _origApplyRemote44.apply(this, arguments);
+      try {
+        if (data && data.profile && myBefore && JSON.stringify(duoProfile[mine]) !== JSON.stringify(myBefore)) {
+          duoProfile[mine] = myBefore;
+          persistData();
+          if (typeof renderProfileUI === 'function') renderProfileUI();
+          if (typeof renderItems === 'function') renderItems();
+        }
+      } catch (e) {}
+      return r;
+    };
   
     /* ----------------------------------------------------
        41. 머니로드 스텝 이모지 자동 전환 (2.9.29)
