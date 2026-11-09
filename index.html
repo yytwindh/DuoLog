@@ -1291,7 +1291,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
       del(k) { try { localStorage.removeItem(k); } catch (e) {} }
     };
-    let syncClient = null;
+    let syncClients = [];
     let syncKey = null;
     let syncTopic = null;
     let syncCode = null;
@@ -1353,12 +1353,17 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
 
     async function pushSync() {
-      if (!syncClient || !syncClient.connected || !syncKey || !syncTopic) return;
+      const targets = syncClients.filter(c => c.connected);
+      if (!targets.length || !syncKey || !syncTopic) return;
+      // 데이터를 가져본 적 없는 빈 기기는 절대 전송하지 않는다
+      // (빈 상태로 상대 데이터를 덮는 사고 방지; 전부 삭제한 경우는 has_data가 남아 있어 전송됨)
+      if (items.length) syncStore.set('duolog_has_data', '1');
+      if (!items.length && syncStore.get('duolog_has_data') !== '1') return;
       try {
         lastSyncTs = Date.now();
         syncStore.set('duolog_sync_ts', String(lastSyncTs));
         const payload = await syncEncrypt({ ts: lastSyncTs, data: { items: items, profile: duoProfile, categories: categories } });
-        syncClient.publish(syncTopic, payload, { retain: true, qos: 1 });
+        targets.forEach(c => { try { c.publish(syncTopic, payload, { retain: true, qos: 1 }); } catch (e) {} });
       } catch (err) {
         console.warn('동기화 전송 실패:', err);
       }
@@ -1383,10 +1388,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
 
     function stopSync() {
-      if (syncClient) {
-        try { syncClient.end(true); } catch (e) {}
-        syncClient = null;
-      }
+      syncClients.forEach(c => { try { c.end(true); } catch (e) {} });
+      syncClients = [];
       syncKey = null;
       syncTopic = null;
     }
@@ -1412,54 +1415,40 @@ Check your Browserslist config to be sure that your targets are set up correctly
       }
       syncSetStatus('연결 중…');
 
-      let brokerIdx = 0;
-      let connectedOnce = false;
-
-      const tryConnect = () => {
-        if (!syncCode) return;
-        const client = mqtt.connect(SYNC_BROKERS[brokerIdx], {
+      let anyConnected = false;
+      SYNC_BROKERS.forEach(brokerUrl => {
+        const client = mqtt.connect(brokerUrl, {
           clientId: 'duolog-' + Math.random().toString(36).slice(2, 10),
           reconnectPeriod: 3000,
-          connectTimeout: 15000,
+          connectTimeout: 7000,
           clean: true
         });
-        syncClient = client;
-        let gotRemote = false;
-
+        syncClients.push(client);
+        let gotRemoteHere = false;
         client.on('connect', () => {
-          connectedOnce = true;
+          anyConnected = true;
           syncSetStatus('연결됨');
           client.subscribe(syncTopic, { qos: 1 });
-          // 채널에 저장된 최신본이 도착할 시간을 준 뒤, 없거나 내 쪽이 더 최신이면 내 데이터를 올린다
-          setTimeout(() => { if (!gotRemote) pushSync(); }, 1800);
+          // 이 채널에 저장된 최신본이 도착할 시간을 준 뒤,
+          // 예전 상태가 있는 기기만 자기 데이터를 다시 올린다 (빈 기기의 빈 덮어쓰기 방지)
+          setTimeout(() => { if (!gotRemoteHere) pushSync(); }, 2500);
         });
         client.on('message', async (topic, payload) => {
-          gotRemote = true;
+          gotRemoteHere = true;
           try {
             const msg = await syncDecrypt(payload.toString());
-            if (msg && msg.ts && msg.ts > lastSyncTs) {
+            if (msg && msg.ts && (msg.ts > lastSyncTs || (!items.length && msg.data && msg.data.items && msg.data.items.length))) {
               applyRemoteData(msg.ts, msg.data);
               showToast('파트너의 최신 데이터로 동기화했어요', '🔄');
             }
           } catch (e) { /* 다른 채널/손상 메시지 무시 */ }
         });
-        client.on('error', () => {
-          if (!connectedOnce) {
-            try { client.end(true); } catch (e) {}
-            if (syncClient === client) syncClient = null;
-            brokerIdx++;
-            if (brokerIdx < SYNC_BROKERS.length && syncCode) {
-              tryConnect();
-            } else {
-              syncSetStatus('연결 실패');
-            }
+        client.on('close', () => {
+          if (syncClients.includes(client) && !syncClients.some(c => c.connected)) {
+            syncSetStatus(anyConnected ? '재연결 중…' : '연결 중…');
           }
         });
-        client.on('close', () => {
-          if (syncClient === client && connectedOnce) syncSetStatus('재연결 중…');
-        });
-      };
-      tryConnect();
+      });
     }
 
     function applySyncCode() {
@@ -1504,7 +1493,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const saved = syncStore.get('duolog_sync_code');
       const input = document.getElementById('syncCodeInput');
       if (input) input.value = saved || '';
-      syncSetStatus(syncClient && syncClient.connected ? '연결됨' : (saved ? '연결 중…' : '꺼짐'));
+      syncSetStatus(syncClients.some(c => c.connected) ? '연결됨' : (saved ? '연결 중…' : '꺼짐'));
     };
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -1531,9 +1520,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
           syncStore.set('duolog_routines', JSON.stringify(DEFAULT_ROUTINES));
         }
         syncStore.set('duolog_version', DUOLOG_DATA_VERSION);
-        // 파트너 폰에 남아 있는 옛 샘플 데이터가 되돌아오지 않도록 기준 시각을 지금으로 맞춘다
-        lastSyncTs = Date.now();
-        syncStore.set('duolog_sync_ts', String(lastSyncTs));
+        // 주의: 여기서 duolog_sync_ts를 지금 시각으로 찍으면, 새로 합류한 기기가
+        // 파트너의 기존 데이터를 '오래된 것'으로 오인해 영영 받지 못하는 버그가 된다. 찍지 않는다.
       } catch (e) { /* 저장소를 쓸 수 없는 환경에서는 건너뜀 */ }
     }
   
