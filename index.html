@@ -1105,6 +1105,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
               </button>
               
+              <button onclick="openEditItemModal('${item.id}')" title="편집" class="p-1.5 rounded-xl text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+              </button>
               <button onclick="deleteItem('${item.id}')" title="삭제" class="p-1.5 rounded-xl text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
               </button>
@@ -2851,6 +2854,75 @@ Check your Browserslist config to be sure that your targets are set up correctly
       if (target) target.value = '';
       closeTimePicker();
     }
+  
+    /* ----------------------------------------------------
+       23. 일정 편집
+       - 카드의 편집 버튼 → 기존 추가 폼에 값을 채워 열고, 제출하면 새로 만들지 않고 그 일정을 수정
+       - 댓글·응원·완료 상태·반복 그룹은 그대로 유지. 반복 일정도 이 날짜 것만 수정됨
+    ---------------------------------------------------- */
+    function openEditItemModal(id) {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+      const modal = document.getElementById('modalItem');
+      const content = document.getElementById('modalItemContent');
+      document.getElementById('itemForm').reset();
+      document.getElementById('itemId').value = item.id;
+      document.getElementById('modalItemTitle').innerText = '일정 편집';
+      const ownerRadio = document.querySelector('input[name="owner"][value="' + item.owner + '"]');
+      if (ownerRadio) ownerRadio.checked = true;
+      const catContainer = document.getElementById('formCategoryChips');
+      catContainer.innerHTML = '';
+      categories.forEach(cat => {
+        const label = document.createElement('label');
+        label.className = 'cursor-pointer flex-shrink-0';
+        label.innerHTML = '<input type="radio" name="formCategory" value="' + cat.id + '" class="peer sr-only"' + (cat.id === item.categoryId ? ' checked' : '') + '>' +
+          '<div class="px-3 py-1.5 rounded-xl border border-gray-200 peer-checked:border-indigo-600 peer-checked:bg-indigo-50 peer-checked:text-indigo-600 text-xs font-semibold flex items-center gap-1 transition"><span>' + cat.emoji + '</span><span>' + escapeHtml(cat.name) + '</span></div>';
+        catContainer.appendChild(label);
+      });
+      document.getElementById('itemTitle').value = item.title || '';
+      document.getElementById('itemDate').value = item.date || selectedDate;
+      document.getElementById('itemTime').value = item.time || '';
+      document.getElementById('itemMemo').value = item.memo || '';
+      const rep = document.getElementById('itemRepeat');
+      if (rep) {
+        rep.value = 'none';
+        if (typeof toggleRepeatOptions === 'function') toggleRepeatOptions();
+      }
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      setTimeout(() => { content.classList.remove('translate-y-full'); }, 10);
+    }
+
+    const _origHandleItemSubmit21 = handleItemSubmit;
+    handleItemSubmit = function (e) {
+      const idEl = document.getElementById('itemId');
+      const editId = idEl ? idEl.value : '';
+      if (editId) {
+        e.preventDefault();
+        const item = items.find(i => i.id === editId);
+        if (item) {
+          const title = document.getElementById('itemTitle').value.trim();
+          const date = document.getElementById('itemDate').value;
+          if (title && date) {
+            item.title = title;
+            item.date = date;
+            item.time = document.getElementById('itemTime').value;
+            item.memo = document.getElementById('itemMemo').value.trim();
+            const ownerRadio = document.querySelector('input[name="owner"]:checked');
+            if (ownerRadio) item.owner = ownerRadio.value;
+            const catRadio = document.querySelector('input[name="formCategory"]:checked');
+            if (catRadio) item.categoryId = catRadio.value;
+            selectedDate = date;
+            persistData();
+            closeNewItemModal();
+            renderDateStrip();
+            renderItems();
+            showToast('일정이 수정되었습니다!', '✏️');
+          }
+        }
+        return;
+      }
+      _origHandleItemSubmit21(e);
+    };
   </script>
 </body>
 </html>
