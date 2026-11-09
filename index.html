@@ -5172,6 +5172,64 @@ Check your Browserslist config to be sure that your targets are set up correctly
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && dlSession && Date.now() - dlRtLastFetch > 30000) dlLoadAccountRoutines();
     });
+  
+    /* ----------------------------------------------------
+       68. 일정 항목별 병합 (2.9.46)
+       - applyRemoteData 래핑: 원격 스냅샷에 없는 로컬 일정을 유지 (통째 덮어쓰기 방지)
+       - 삭제된 일정 id는 tombstones.item에 기록·동기화 — 오래된 스냅샷이 되살리지 못함
+       - 삭제 기록은 삭제가 실제로 일어난 뒤에만 남긴다 (권한 차단·반복 모달 대기 중에는 기록 안 함)
+    ---------------------------------------------------- */
+    const _origTb68 = dlTombstones;
+    dlTombstones = function () {
+      const tb = _origTb68.apply(this, arguments);
+      if (!Array.isArray(tb.item)) tb.item = [];
+      return tb;
+    };
+    function dlItemTbAdd(id) {
+      const tb = dlTombstones();
+      if (tb.item.indexOf(id) < 0) {
+        tb.item.push(id);
+        if (tb.item.length > 300) tb.item = tb.item.slice(tb.item.length - 300);
+      }
+    }
+    const _origApplyRemote68 = applyRemoteData;
+    applyRemoteData = async function (ts, data) {
+      const localItems = (typeof items !== 'undefined' && Array.isArray(items)) ? items.slice() : [];
+      let localTbItem = [];
+      try { localTbItem = (dlTombstones().item || []).slice(); } catch (e) {}
+      const r = await _origApplyRemote68.apply(this, arguments);
+      try {
+        const tb = dlTombstones();
+        localTbItem.forEach(id => { if (tb.item.indexOf(id) < 0) tb.item.push(id); });
+        if (data && Array.isArray(data.items) && typeof items !== 'undefined') {
+          const before = items.length;
+          items = items.filter(i => tb.item.indexOf(i.id) < 0);
+          const ids = new Set(items.map(i => i.id));
+          localItems.forEach(i => { if (!ids.has(i.id) && tb.item.indexOf(i.id) < 0) { items.push(i); ids.add(i.id); } });
+          if (items.length !== before) {
+            persistData();
+            if (typeof renderItems === 'function') renderItems();
+            if (typeof renderDateStrip === 'function') renderDateStrip();
+            if (typeof renderMonthView === 'function' && typeof viewMode !== 'undefined' && viewMode === 'month') renderMonthView();
+          }
+        }
+      } catch (e) {}
+      return r;
+    };
+    const _origDeleteItem68 = deleteItem;
+    deleteItem = function (id) {
+      const before = new Set(items.map(i => i.id));
+      const r = _origDeleteItem68.apply(this, arguments);
+      before.forEach(x => { if (!items.find(i => i.id === x)) dlItemTbAdd(x); });
+      return r;
+    };
+    const _origConfirmDel68 = confirmDeleteRepeat;
+    confirmDeleteRepeat = function (all) {
+      const before = new Set(items.map(i => i.id));
+      const r = _origConfirmDel68.apply(this, arguments);
+      before.forEach(x => { if (!items.find(i => i.id === x)) dlItemTbAdd(x); });
+      return r;
+    };
   </script>
 </body>
 </html>
