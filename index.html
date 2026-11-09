@@ -3925,7 +3925,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         list.innerHTML = reg.accounts.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(a =>
           '<div class="p-3 bg-gray-50 rounded-2xl border border-gray-100">' +
           '<p class="text-xs font-bold text-gray-800">' + (a.emoji || '🙂') + ' ' + escapeHtml(a.name || '') + ' <span class="text-gray-400 font-medium">(' + escapeHtml(a.id) + ')</span></p>' +
-          '<p class="text-[10px] text-gray-400 mt-0.5">가입 ' + dlAcctDate(a.createdAt) + ' · 비밀번호 해시 ' + escapeHtml(String(a.pwHash || '').slice(0, 12)) + '…</p>' +
+          '<p class="text-[10px] text-gray-400 mt-0.5">가입 ' + dlAcctDate(a.createdAt) + ' · 비밀번호 ' + (a.pwLen ? a.pwLen + '자리' : '—') + ' · 해시 ●●●●●●</p>' +
           '</div>').join('');
       } catch (e) {
         list.innerHTML = '<p class="text-xs text-rose-500 text-center py-4">서버에 연결할 수 없어요.</p>';
@@ -4144,7 +4144,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       try {
         const reg = await dlRegistryFetch();
         if (reg.accounts.some(a => a.id === id)) { dlAuthMsg('regMsg', '이미 있는 아이디예요. 다른 아이디를 써주세요.', false); return false; }
-        const acct = { id: id, pwHash: await dlPwHash(id, pw), name: name, emoji: emoji, createdAt: Date.now() };
+        const acct = { id: id, pwHash: await dlPwHash(id, pw), pwLen: pw.length, name: name, emoji: emoji, createdAt: Date.now() };
         reg.accounts.push(acct);
         await dlRegistryPublish(reg);
         const sess = { id: id, name: name, emoji: emoji };
@@ -4186,15 +4186,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       if (bound) {
         inner += '<p class="text-[11px] text-emerald-600 font-semibold mt-1">🔗 ' + (bound === 'p1' ? '파트너 1' : '파트너 2') + ' 자리와 연결되어 있어요</p>';
       } else {
-        inner += '<p class="text-[11px] text-gray-400 mt-1 mb-2">아직 내 자리가 연결되지 않았어요. 아래에서 내 자리를 골라주세요.</p><div class="flex gap-2">';
-        ['p1', 'p2'].forEach(slot => {
-          const p = duoProfile[slot];
-          const taken = p.account && p.account !== dlSession.id;
-          inner += '<button type="button" ' + (taken ? 'disabled' : 'onclick="dlClaimSlot(\'' + slot + '\')"') +
-            ' class="flex-1 py-2 rounded-xl border text-xs font-bold ' + (taken ? 'bg-gray-100 text-gray-300 border-gray-100' : 'bg-white text-gray-700 border-gray-200 active:scale-95 transition') + '">' +
-            p.emoji + ' ' + escapeHtml(p.name) + (taken ? ' (연결됨)' : '로 연결') + '</button>';
-        });
-        inner += '</div>';
+        inner += '<p class="text-[11px] text-gray-400 mt-1">동기화 데이터가 오면 닉네임이 같은 자리에 자동으로 연결돼요.</p>';
       }
       box.innerHTML = inner + '</div>';
     }
@@ -4315,6 +4307,46 @@ Check your Browserslist config to be sure that your targets are set up correctly
       if (i === cur) return '🔥';
       return s.emoji || '💫';
     }
+  
+    /* ----------------------------------------------------
+       48. 자리 자동 연결 (2.9.34): 선택 버튼 없이 로그인 계정이 자리를 정함
+       - 닉네임이 같은 자리 우선, 없으면 빈 자리(p1→p2) 순서
+       - 두 자리가 다른 계정으로 다 차 있으면 연결하지 않음
+    ---------------------------------------------------- */
+    function dlAutoBind() {
+      try {
+        if (!dlSession) return;
+        if (dlBoundSlot()) return;
+        let target = null;
+        ['p1', 'p2'].forEach(slot => {
+          if (!target && duoProfile[slot] && !duoProfile[slot].account && duoProfile[slot].name === dlSession.name) target = slot;
+        });
+        if (!target) {
+          ['p1', 'p2'].forEach(slot => {
+            if (!target && duoProfile[slot] && !duoProfile[slot].account) target = slot;
+          });
+        }
+        if (!target) return;
+        duoProfile[target].account = dlSession.id;
+        duoProfile[target].name = dlSession.name;
+        duoProfile[target].emoji = dlSession.emoji;
+        try { syncStore.set('duolog_my_role', target); } catch (e) {}
+        persistData();
+        if (typeof renderProfileUI === 'function') renderProfileUI();
+        dlRenderAccountBox();
+      } catch (e) {}
+    }
+    const _origEnterApp48 = dlEnterApp;
+    dlEnterApp = function (sess) {
+      _origEnterApp48.apply(this, arguments);
+      dlAutoBind();
+    };
+    const _origApplyRemote48 = applyRemoteData;
+    applyRemoteData = async function (ts, data) {
+      const r = await _origApplyRemote48.apply(this, arguments);
+      try { dlAutoBind(); } catch (e) {}
+      return r;
+    };
   </script>
 </body>
 </html>
