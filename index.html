@@ -209,9 +209,31 @@ Check your Browserslist config to be sure that your targets are set up correctly
         </div>
       </div>
 
+      <!-- 주간/월간 보기 전환 -->
+      <div class="mt-3 flex items-center justify-end">
+        <div class="flex bg-gray-100 rounded-full p-0.5 text-[11px] font-semibold">
+          <button id="viewBtnWeek" onclick="setViewMode('week')" class="px-3 py-1 rounded-full bg-white shadow-sm text-gray-900">주간</button>
+          <button id="viewBtnMonth" onclick="setViewMode('month')" class="px-3 py-1 rounded-full text-gray-500">월간</button>
+        </div>
+      </div>
+
       <!-- 2. 주간 캘린더 날짜 스트립 (가로 스크롤 가능) -->
       <div class="mt-4 flex items-center justify-between no-scrollbar overflow-x-auto py-1" id="weekDateStrip">
         <!-- JS로 동적 생성 -->
+      </div>
+
+      <!-- 월간 캘린더 뷰 -->
+      <div id="monthView" class="hidden mt-2">
+        <div class="flex items-center justify-between mb-1 px-1">
+          <button onclick="changeMonth(-1)" class="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:scale-95 transition text-base">‹</button>
+          <span id="monthTitle" class="text-sm font-bold text-gray-800"></span>
+          <button onclick="changeMonth(1)" class="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:scale-95 transition text-base">›</button>
+        </div>
+        <div class="grid grid-cols-7 text-center text-[11px] font-semibold text-gray-400 mb-1">
+          <span class="text-red-400">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="text-blue-400">토</span>
+        </div>
+        <div id="monthGrid" class="grid grid-cols-7 gap-1"></div>
+        <p class="text-[10px] text-gray-300 mt-1.5 text-right pr-1">점은 그날의 일정 · 파랑=동호, 분홍=뱁새, 보라=함께</p>
       </div>
     </header>
 
@@ -1371,6 +1393,99 @@ Check your Browserslist config to be sure that your targets are set up correctly
         syncStore.set('duolog_sync_ts', String(lastSyncTs));
       } catch (e) { /* 저장소를 쓸 수 없는 환경에서는 건너뜀 */ }
     }
+  
+    /* ----------------------------------------------------
+       13. 월간 캘린더 뷰 (주간/월간 전환)
+    ---------------------------------------------------- */
+    let viewMode = syncStore.get('duolog_view') || 'week';
+    let monthCursor = null; // Date(그 달 1일)
+
+    function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+
+    function setViewMode(mode) {
+      viewMode = mode;
+      syncStore.set('duolog_view', mode);
+      const strip = document.getElementById('weekDateStrip');
+      const mv = document.getElementById('monthView');
+      const bw = document.getElementById('viewBtnWeek');
+      const bm = document.getElementById('viewBtnMonth');
+      if (strip) strip.style.display = mode === 'month' ? 'none' : '';
+      if (mv) mv.classList.toggle('hidden', mode !== 'month');
+      const on = 'px-3 py-1 rounded-full bg-white shadow-sm text-gray-900';
+      const off = 'px-3 py-1 rounded-full text-gray-500';
+      if (bw) bw.className = mode === 'week' ? on : off;
+      if (bm) bm.className = mode === 'month' ? on : off;
+      if (mode === 'month') {
+        if (!monthCursor) monthCursor = startOfMonth(new Date(selectedDate));
+        renderMonthView();
+      }
+    }
+
+    function changeMonth(delta) {
+      if (!monthCursor) monthCursor = startOfMonth(new Date(selectedDate));
+      monthCursor = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + delta, 1);
+      renderMonthView();
+    }
+
+    function renderMonthView() {
+      const grid = document.getElementById('monthGrid');
+      const title = document.getElementById('monthTitle');
+      if (!grid) return;
+      if (!monthCursor) monthCursor = startOfMonth(new Date(selectedDate));
+      const y = monthCursor.getFullYear();
+      const m = monthCursor.getMonth();
+      if (title) title.innerText = y + '년 ' + (m + 1) + '월';
+      const startDay = new Date(y, m, 1).getDay();
+      const lastDate = new Date(y, m + 1, 0).getDate();
+      const totalCells = Math.ceil((startDay + lastDate) / 7) * 7;
+      const start = new Date(y, m, 1 - startDay);
+      const todayStr = formatDate(new Date());
+      let out = '';
+      for (let i = 0; i < totalCells; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        const ds = formatDate(d);
+        const other = d.getMonth() !== m;
+        const isSel = ds === selectedDate;
+        const isToday = ds === todayStr;
+        const dow = d.getDay();
+        const dayItems = items.filter(it => it.date === ds);
+        let dots = '';
+        dayItems.slice(0, 3).forEach(it => {
+          const col = isSel ? 'rgba(255,255,255,0.9)' : (it.owner === 'p1' ? '#6366F1' : it.owner === 'p2' ? '#EC4899' : '#8B5CF6');
+          dots += '<span style="background:' + col + '" class="w-1.5 h-1.5 rounded-full inline-block"></span>';
+        });
+        if (dayItems.length > 3) dots += '<span class="text-[9px] font-semibold ' + (isSel ? 'text-white/80' : 'text-gray-400') + '">+' + (dayItems.length - 3) + '</span>';
+        const numCls = isSel ? 'text-white' : (other ? 'text-gray-300' : (dow === 0 ? 'text-red-500' : (dow === 6 ? 'text-blue-500' : 'text-gray-700')));
+        const todayCls = (isToday && !isSel) ? ' underline decoration-2 decoration-indigo-400 underline-offset-2' : '';
+        out += '<button onclick="onMonthDayClick(\'' + ds + '\')" class="flex flex-col items-center py-1.5 rounded-xl ' +
+          (isSel ? 'bg-indigo-600 shadow-sm' : 'hover:bg-gray-50') + '">' +
+          '<span class="text-xs font-semibold ' + numCls + todayCls + '">' + d.getDate() + '</span>' +
+          '<span class="flex items-center gap-0.5 mt-1 h-2">' + dots + '</span></button>';
+      }
+      grid.innerHTML = out;
+    }
+
+    function onMonthDayClick(ds) {
+      const d = new Date(ds);
+      if (!isNaN(d)) monthCursor = startOfMonth(d);
+      selectDate(ds);
+    }
+
+    // 날짜 선택·데이터 변경 시 월간 뷰도 함께 갱신
+    const _origSelectDate = selectDate;
+    selectDate = function (dateStr) {
+      _origSelectDate(dateStr);
+      const d = new Date(dateStr);
+      if (!isNaN(d)) monthCursor = startOfMonth(d);
+      if (viewMode === 'month') renderMonthView();
+    };
+    const _origPersistData2 = persistData;
+    persistData = function () {
+      _origPersistData2();
+      if (viewMode === 'month') renderMonthView();
+    };
+
+    window.addEventListener('DOMContentLoaded', () => { setViewMode(viewMode); });
   </script>
 </body>
 </html>
