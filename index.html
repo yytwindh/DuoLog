@@ -172,6 +172,12 @@ Check your Browserslist config to be sure that your targets are set up correctly
       animation: heartPop 0.8s ease-out forwards;
     }
   </style>
+  <style>
+    .dl-wheel { height: 220px; width: 88px; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+    .dl-wheel::-webkit-scrollbar { display: none; }
+    .dl-wheel-item { height: 44px; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; color: #9ca3af; scroll-snap-align: center; cursor: pointer; user-select: none; -webkit-user-select: none; }
+    .dl-wheel-item.dl-active { color: #111827; font-size: 21px; font-weight: 700; }
+  </style>
 </head>
 
 <body class="font-sans antialiased text-gray-800 flex justify-center min-h-screen">
@@ -383,8 +389,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
           </div>
           <div>
             <label class="block text-xs font-semibold text-gray-500 mb-1.5">시간 (선택)</label>
-            <input type="time" id="itemTime" 
-                   class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+            <input type="text" id="itemTime" readonly onclick="openTimePicker('itemTime')" placeholder="시간 선택 (선택)"
+                   class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium cursor-pointer">
           </div>
         </div>
 
@@ -607,7 +613,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         </div>
         <div class="flex items-center gap-2">
           <span class="text-[11px] text-gray-400 font-medium flex-shrink-0">기본 시간</span>
-          <input type="time" id="routineTime" class="flex-1 px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-medium">
+          <input type="text" id="routineTime" readonly onclick="openTimePicker('routineTime')" placeholder="시간 선택" class="flex-1 px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-medium cursor-pointer">
         </div>
         <button type="submit" id="routineSaveBtn" class="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-xs active:scale-95 transition">루틴 추가</button>
       </form>
@@ -740,6 +746,31 @@ Check your Browserslist config to be sure that your targets are set up correctly
           공모주 일정 추가
         </button>
       </form>
+    </div>
+  </div>
+
+  <!-- [모달] 시간 휠 피커 -->
+  <div id="modalTimePicker" class="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+    <div id="modalTimePickerContent" class="w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl transform translate-y-full sheet-transition">
+      <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4"></div>
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-lg font-bold text-gray-900">시간 선택</h3>
+        <button onclick="closeTimePicker()" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">
+          ✕
+        </button>
+      </div>
+      <div class="relative flex justify-center items-start gap-1 py-1">
+        <div class="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 pointer-events-none"></div>
+        <div class="absolute left-6 right-6 top-0 h-16 bg-gradient-to-b from-white to-transparent pointer-events-none z-10"></div>
+        <div class="absolute left-6 right-6 bottom-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none z-10"></div>
+        <div id="wheelHour" class="dl-wheel relative"></div>
+        <div class="self-center text-xl font-bold text-gray-300 px-1">:</div>
+        <div id="wheelMinute" class="dl-wheel relative"></div>
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button onclick="clearTimePicker()" class="flex-1 py-3 rounded-2xl bg-gray-100 text-sm font-bold text-gray-500 active:scale-[0.98] transition">시간 없음</button>
+        <button onclick="confirmTimePicker()" class="flex-[2] py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm font-bold shadow-md active:scale-[0.98] transition">완료</button>
+      </div>
     </div>
   </div>
 
@@ -2518,7 +2549,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
        - 공유 탭이면 일정 탭으로 돌아가고 true
        - 홈(일정 탭, 모달 없음)이면 false -> 셸이 종료 확인을 띄움
     ---------------------------------------------------- */
-    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo'];
+    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo', 'modalTimePicker'];
     const dlModalStack = [];
     function dlModalIsOpen(el) { return !!el && !el.classList.contains('pointer-events-none'); }
     (function trackModals() {
@@ -2739,6 +2770,86 @@ Check your Browserslist config to be sure that your targets are set up correctly
         if (orphans.length) out += '<span class="w-full text-[11px] font-bold text-gray-400">📌 기타</span>' + orphans.map(chipHtml).join('');
       }
       box.innerHTML = out || '<span class="text-[11px] text-gray-400">이 카테고리에 등록된 루틴이 없어요.</span>';
+    }
+  
+    /* ----------------------------------------------------
+       22. 시간 휠 피커 (아이폰 알람 스타일 드럼)
+       - 시(0-23)·분(0-59) 각각 드래그 스크롤로 선택, 가운데 항목이 선택값
+       - 기존 값이 없으면 시=현재 시, 분=0에서 시작
+    ---------------------------------------------------- */
+    let dlTimeTargetId = 'itemTime';
+    let dlWheelsBuilt = false;
+    const DL_WHEEL_ITEM_H = 44;
+    function dlBuildWheel(el, count) {
+      let s = '<div style="height:88px"></div>';
+      for (let i = 0; i < count; i++) {
+        const t = (i < 10 ? '0' : '') + i;
+        s += '<div class="dl-wheel-item" data-v="' + i + '">' + t + '</div>';
+      }
+      s += '<div style="height:88px"></div>';
+      el.innerHTML = s;
+      el.addEventListener('scroll', () => dlPaintWheel(el));
+      el.addEventListener('click', e => {
+        const it = e.target.closest('.dl-wheel-item');
+        if (it) el.scrollTo({ top: Number(it.dataset.v) * DL_WHEEL_ITEM_H, behavior: 'smooth' });
+      });
+    }
+    function dlPaintWheel(el) {
+      const v = Math.max(0, Math.min(Number(el.dataset.max), Math.round(el.scrollTop / DL_WHEEL_ITEM_H)));
+      el.querySelectorAll('.dl-wheel-item').forEach(it => {
+        it.classList.toggle('dl-active', Number(it.dataset.v) === v);
+      });
+    }
+    function dlWheelValue(el) {
+      return Math.max(0, Math.min(Number(el.dataset.max), Math.round(el.scrollTop / DL_WHEEL_ITEM_H)));
+    }
+    function dlPad2(n) { return (n < 10 ? '0' : '') + n; }
+    function openTimePicker(targetId) {
+      dlTimeTargetId = targetId || 'itemTime';
+      const hourEl = document.getElementById('wheelHour');
+      const minEl = document.getElementById('wheelMinute');
+      if (!hourEl || !minEl) return;
+      if (!dlWheelsBuilt) {
+        hourEl.dataset.max = 23;
+        minEl.dataset.max = 59;
+        dlBuildWheel(hourEl, 24);
+        dlBuildWheel(minEl, 60);
+        dlWheelsBuilt = true;
+      }
+      const target = document.getElementById(dlTimeTargetId);
+      const cur = target ? target.value : '';
+      const m = /^(\d{1,2}):(\d{2})/.exec(cur || '');
+      const hh = m ? Number(m[1]) : new Date().getHours();
+      const mm = m ? Number(m[2]) : 0;
+      const modal = document.getElementById('modalTimePicker');
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      const content = document.getElementById('modalTimePickerContent');
+      if (content) requestAnimationFrame(() => content.classList.remove('translate-y-full'));
+      requestAnimationFrame(() => {
+        hourEl.scrollTop = hh * DL_WHEEL_ITEM_H;
+        minEl.scrollTop = mm * DL_WHEEL_ITEM_H;
+        dlPaintWheel(hourEl);
+        dlPaintWheel(minEl);
+      });
+    }
+    function closeTimePicker() {
+      const modal = document.getElementById('modalTimePicker');
+      if (!modal) return;
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      const content = document.getElementById('modalTimePickerContent');
+      if (content) content.classList.add('translate-y-full');
+    }
+    function confirmTimePicker() {
+      const hh = dlWheelValue(document.getElementById('wheelHour'));
+      const mm = dlWheelValue(document.getElementById('wheelMinute'));
+      const target = document.getElementById(dlTimeTargetId);
+      if (target) target.value = dlPad2(hh) + ':' + dlPad2(mm);
+      closeTimePicker();
+    }
+    function clearTimePicker() {
+      const target = document.getElementById(dlTimeTargetId);
+      if (target) target.value = '';
+      closeTimePicker();
     }
   </script>
 </body>
