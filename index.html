@@ -223,6 +223,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
   <script>
     (function () { try { var p = localStorage.getItem('duolog_theme') || 'system'; var dark = p === 'dark' || (p === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); if (dark) document.documentElement.classList.add('dl-dark'); } catch (e) {} })();
   </script>
+<style id="dlIosDateFix">input[type="date"] { min-width: 0 !important; max-width: 100%; } .grid > div { min-width: 0; }</style>
 </head>
 
 <body class="font-sans antialiased text-gray-800 flex justify-center min-h-screen">
@@ -5359,7 +5360,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.65', code: 75 };
+    window.DL_VERSION = { name: '2.9.66', code: 76 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
