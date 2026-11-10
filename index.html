@@ -1455,9 +1455,10 @@ Check your Browserslist config to be sure that your targets are set up correctly
             <!-- 체크박스 & 제목 영역 -->
             <div class="flex items-start gap-3 flex-1 min-w-0">
               <button onclick="toggleItemComplete('${item.id}')" class="mt-0.5 w-5 h-5 rounded-lg border flex items-center justify-center transition ${
-                item.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 hover:border-gray-400 bg-white'
+                (item.owner !== 'both' && dlMySlotSafe() && item.owner !== dlMySlotSafe()) ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed' :
+                dlMyDone(item) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 hover:border-gray-400 bg-white'
               }">
-                ${item.completed ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}
+                ${dlMyDone(item) ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}
               </button>
 
               <div class="flex-1 min-w-0">
@@ -1467,6 +1468,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
                   ${item.time ? `<span class="text-[11px] font-semibold text-gray-400">⏰ ${item.time}</span>` : ''}
                   ${item.repeatId ? '<span class="text-[11px] font-semibold text-indigo-400">🔁 반복</span>' : ''}
                 </div>
+                ${item.owner === 'both' ? `<div class="flex items-center gap-1 mt-0.5">${dlDoneChip(item, 'p1')}${dlDoneChip(item, 'p2')}</div>` : ''}
                 
 
                 
@@ -5349,7 +5351,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.58', code: 68 };
+    window.DL_VERSION = { name: '2.9.59', code: 69 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -6002,6 +6004,57 @@ Check your Browserslist config to be sure that your targets are set up correctly
     dlRenderAccountBox = function () { const r = _origRenderAcct95.apply(this, arguments); dlRenderThemeBox(); return r; };
     if (window.matchMedia) { const mq95 = window.matchMedia('(prefers-color-scheme: dark)'); if (mq95.addEventListener) mq95.addEventListener('change', () => { if (dlThemePref() === 'system') dlApplyTheme(); }); }
     dlApplyTheme();
+  
+    // 완료 규칙 (2.9.59): 내 일정은 나만, 함께 일정은 각자 눌러 둘 다 눌러야 완료. item.doneBy에 각자 상태를 저장하고 completed는 '전부 완료' 파생값으로 유지
+    function dlMySlotSafe() { try { return dlMySlot(); } catch (e) { return null; } }
+    function dlDoneBy(item) {
+      if (item.doneBy && typeof item.doneBy === 'object') return { p1: !!item.doneBy.p1, p2: !!item.doneBy.p2 };
+      if (item.completed) {
+        if (item.owner === 'both') return { p1: true, p2: true };
+        return item.owner === 'p2' ? { p1: false, p2: true } : { p1: true, p2: false };
+      }
+      return { p1: false, p2: false };
+    }
+    function dlIsFullDone(item) {
+      const d = dlDoneBy(item);
+      if (item.owner === 'both') return d.p1 && d.p2;
+      return item.owner === 'p2' ? d.p2 : d.p1;
+    }
+    function dlMyDone(item) {
+      const me = dlMySlotSafe();
+      if (!me) return !!item.completed;
+      if (item.owner === 'both') return !!dlDoneBy(item)[me];
+      if (item.owner === me) return !!dlDoneBy(item)[me];
+      return !!item.completed;
+    }
+    function dlDoneChip(item, who) {
+      const prof = who === 'p1' ? duoProfile.p1 : duoProfile.p2;
+      const done = !!dlDoneBy(item)[who];
+      return '<span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold ' + (done ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400') + '">' + (prof.emoji || '') + ' ' + escapeHtml(prof.name || '') + (done ? ' 완료 ✓' : ' 대기') + '</span>';
+    }
+    const _origToggle96 = toggleItemComplete;
+    toggleItemComplete = function (id) {
+      const it = items.find(x => x.id === id);
+      const me = dlMySlotSafe();
+      if (!it || !me) return _origToggle96.apply(this, arguments);
+      if (it.owner !== 'both' && it.owner !== me) {
+        showToast('남의 일정은 완료할 수 없어요', '🔒');
+        return;
+      }
+      const wasFull = dlIsFullDone(it);
+      const d = dlDoneBy(it);
+      d[me] = !d[me];
+      it.doneBy = d;
+      it.completed = dlIsFullDone(it);
+      persistData();
+      renderItems();
+      if (it.completed && !wasFull) {
+        try { dlFeedPush('complete', "님이 '" + it.title + "'을(를) 완료했어요"); } catch (err) {}
+        showToast(it.owner === 'both' ? '둘 다 완료했어요! 🎉' : '완료했습니다! 멋져요 🎉', '👏');
+      } else if (it.owner === 'both' && d[me] && !it.completed) {
+        showToast('내 완료를 눌렀어요. 상대가 누르면 완료돼요', '☝️');
+      }
+    };
   </script>
 </body>
 </html>
