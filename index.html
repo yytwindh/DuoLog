@@ -389,7 +389,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
 
   <!-- [모달 1] 새 일정 / 루틴 / 할일 추가 바텀 시트 -->
   <div id="modalItem" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300">
-    <div id="modalItemContent" class="w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl transform translate-y-full sheet-transition max-h-[92vh] overflow-y-auto no-scrollbar">
+    <div id="modalItemContent" class="w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl transform translate-y-full sheet-transition max-h-[92vh] overflow-y-auto overflow-x-hidden no-scrollbar">
       
       <!-- 시트 헤더 / 드래그 핸들 -->
       <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4"></div>
@@ -431,7 +431,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         <!-- 2. 종류 (카테고리 선택) -->
         <div>
           <label class="block text-xs font-semibold text-gray-500 mb-1.5">카테고리</label>
-          <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1" id="formCategoryChips">
+          <div class="flex flex-wrap items-center gap-2 py-1" id="formCategoryChips">
             <!-- 동적 라디오 칩 -->
           </div>
         </div>
@@ -512,7 +512,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       <form onsubmit="handleCreateCategory(event)" class="space-y-4">
         <div>
           <label class="block text-xs font-semibold text-gray-500 mb-1.5">아이콘 (이모지 선택)</label>
-          <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <div class="flex flex-wrap items-center gap-2 py-1">
             <label><input type="radio" name="catEmoji" value="🥗" class="peer sr-only" checked><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">🥗</span></label>
             <label><input type="radio" name="catEmoji" value="📚" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">📚</span></label>
             <label><input type="radio" name="catEmoji" value="🎬" class="peer sr-only"><span class="w-9 h-9 rounded-xl border border-gray-200 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 flex items-center justify-center text-lg cursor-pointer">🎬</span></label>
@@ -3060,11 +3060,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
         if (filter !== 'all' && filter !== cat.id) return;
         const rs = routines.filter(r => r.categoryId === cat.id);
         const isIpo = cat.id === 'cat-ipo';
-        if (!rs.length && !isIpo) return;
+        if (!rs.length) return;
         out += '<span class="w-full text-[11px] font-bold text-gray-400">' + (cat.emoji || '') + ' ' + escapeHtml(cat.name) + '</span>' + rs.map(chipHtml).join('');
-        if (isIpo) {
-          out += '<button onclick="openIpoModal()" class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-violet-50 border border-dashed border-violet-300 text-xs font-semibold text-violet-600 active:scale-95 transition">＋ 공모주 추가</button>';
-        }
       });
       if (filter === 'all') {
         const orphans = routines.filter(r => !knownIds.includes(r.categoryId));
@@ -5230,7 +5227,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.51', code: 61 };
+    window.DL_VERSION = { name: '2.9.52', code: 62 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -5545,6 +5542,22 @@ Check your Browserslist config to be sure that your targets are set up correctly
         else if (!document.querySelector('input[name="catEmoji"]:checked') && radios.length) { radios[0].checked = true; }
       });
       radios.forEach(r => r.addEventListener('change', () => { custom.value = ''; }));
+    })();
+  
+    // 공모주 카테고리 칩을 누르면 공모주 전용 입력 폼으로 전환 (2.9.52)
+    (function () {
+      const box = document.getElementById('formCategoryChips');
+      if (!box) return;
+      box.addEventListener('click', e => {
+        const label = e.target.closest('label');
+        if (!label) return;
+        const inp = label.querySelector('input[name="formCategory"]');
+        if (!inp || inp.value !== 'cat-ipo') return;
+        const idEl = document.getElementById('itemId');
+        if (idEl && idEl.value) return;
+        if (typeof closeNewItemModal === 'function') closeNewItemModal();
+        if (typeof openIpoModal === 'function') openIpoModal();
+      });
     })();
   </script>
 </body>
