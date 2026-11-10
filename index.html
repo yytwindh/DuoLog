@@ -1468,7 +1468,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
                   ${item.time ? `<span class="text-[11px] font-semibold text-gray-400">⏰ ${item.time}</span>` : ''}
                   ${item.repeatId ? '<span class="text-[11px] font-semibold text-indigo-400">🔁 반복</span>' : ''}
                 </div>
-                ${item.owner === 'both' ? `<div class="flex items-center gap-1 mt-0.5">${dlDoneChip(item, 'p1')}${dlDoneChip(item, 'p2')}</div>` : ''}
+                ${item.owner === 'both' ? `<div class="flex flex-wrap items-center gap-1 mt-0.5">${dlDoneChip(item, 'p1')}${dlDoneChip(item, 'p2')}</div>` : ''}
                 
 
                 
@@ -5351,7 +5351,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.60', code: 70 };
+    window.DL_VERSION = { name: '2.9.61', code: 71 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -6030,7 +6030,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     function dlDoneChip(item, who) {
       const prof = who === 'p1' ? duoProfile.p1 : duoProfile.p2;
       const done = !!dlDoneBy(item)[who];
-      return '<span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold ' + (done ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400') + '">' + (prof.emoji || '') + ' ' + escapeHtml(prof.name || '') + (done ? ' 완료 ✓' : ' 대기') + '</span>';
+      return '<span class="px-1.5 py-0.5 rounded-md whitespace-nowrap flex-shrink-0 text-[10px] font-bold ' + (done ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400') + '">' + (prof.emoji || '') + ' ' + escapeHtml(prof.name || '') + (done ? ' 완료 ✓' : ' 대기') + '</span>';
     }
     const _origToggle96 = toggleItemComplete;
     toggleItemComplete = function (id) {
