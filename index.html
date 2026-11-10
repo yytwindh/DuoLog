@@ -504,6 +504,28 @@ Check your Browserslist config to be sure that your targets are set up correctly
   </div>
 
   <!-- [모달 2] 새 카테고리(목록) 추가 모달 -->
+  <div id="modalCatDelete" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+    <div class="w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl">
+      <h3 class="text-base font-bold text-gray-900 mb-2">목록 삭제</h3>
+      <p id="catDelMsg" class="text-xs text-gray-500 leading-relaxed mb-5"></p>
+      <div class="flex gap-2">
+        <button type="button" onclick="dlCloseCatDelete()" class="w-1/2 py-2.5 rounded-2xl bg-gray-100 text-gray-600 text-xs font-semibold">취소</button>
+        <button type="button" onclick="dlConfirmDeleteCategory()" class="w-1/2 py-2.5 rounded-2xl bg-red-500 text-white text-xs font-semibold">삭제하기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalCatEdit" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300 p-4">
+    <div class="w-full max-w-xs bg-white rounded-3xl p-6 shadow-2xl">
+      <h3 class="text-base font-bold text-gray-900 mb-2">목록 수정</h3>
+      <p id="catEditMsg" class="text-xs text-gray-500 leading-relaxed mb-5"></p>
+      <div class="flex gap-2">
+        <button type="button" onclick="dlCloseCatEdit()" class="w-1/2 py-2.5 rounded-2xl bg-gray-100 text-gray-600 text-xs font-semibold">취소</button>
+        <button type="button" onclick="dlConfirmEditCategory()" class="w-1/2 py-2.5 rounded-2xl bg-indigo-600 text-white text-xs font-semibold">바꿀게요</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modalAddCategory" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl max-h-[92vh] overflow-y-auto no-scrollbar">
       <h3 class="text-base font-bold text-gray-900 mb-1">목록 관리</h3>
@@ -2852,7 +2874,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
        - 공유 탭이면 일정 탭으로 돌아가고 true
        - 홈(일정 탭, 모달 없음)이면 false -> 셸이 종료 확인을 띄움
     ---------------------------------------------------- */
-    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo', 'modalTimePicker', 'modalBucket', 'modalMoney', 'modalAccounts', 'modalNotifs', 'modalSuggest'];
+    const DL_MODAL_IDS = ['modalItem', 'modalComments', 'modalRoutines', 'modalProfile', 'modalAddCategory', 'modalRepeatDelete', 'modalStats', 'modalIpo', 'modalTimePicker', 'modalBucket', 'modalMoney', 'modalAccounts', 'modalNotifs', 'modalSuggest', 'modalCatDelete', 'modalCatEdit'];
     const dlModalStack = [];
     function dlModalIsOpen(el) { return !!el && !el.classList.contains('pointer-events-none'); }
     (function trackModals() {
@@ -5229,7 +5251,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.53', code: 63 };
+    window.DL_VERSION = { name: '2.9.54', code: 64 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -5600,11 +5622,16 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const n = document.getElementById('newCategoryName'); if (n) n.focus();
     }
     function dlDeleteCategory(btn, id) {
+      const used = items.filter(it => it.categoryId === id).length;
+      if (used > 0) { dlAskDeleteCategory(id); return; }
       if (!btn.dataset.armed) {
         btn.dataset.armed = '1'; btn.textContent = '정말 삭제?';
         setTimeout(() => { if (btn.isConnected) { delete btn.dataset.armed; btn.textContent = '삭제'; } }, 3000);
         return;
       }
+      dlDoDeleteCategory(id);
+    }
+    function dlDoDeleteCategory(id) {
       const idx = categories.findIndex(c => c.id === id);
       if (idx < 0) return;
       categories.splice(idx, 1);
@@ -5630,14 +5657,65 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const radio = document.querySelector('input[name="catEmoji"]:checked');
       const customEl = document.getElementById('newCategoryEmojiCustom');
       const customEmoji = customEl ? dlFirstEmoji(customEl.value) : '';
+      const emoji = customEmoji || (radio ? radio.value : cat.emoji);
+      const used = items.filter(it => it.categoryId === cat.id).length;
+      if ((name !== cat.name || emoji !== cat.emoji) && used > 0) { dlAskEditCategory(cat, name, emoji, used); return; }
+      dlApplyCategoryEdit(cat.id, name, emoji);
+    };
+    function dlApplyCategoryEdit(id, name, emoji) {
+      const cat = categories.find(c => c.id === id);
+      if (!cat) return;
       cat.name = name;
-      cat.emoji = customEmoji || (radio ? radio.value : cat.emoji);
+      cat.emoji = emoji;
       persistData();
       renderCategoryPills();
       dlResetCatForm();
       dlRenderCatManageList();
-      showToast('목록을 수정했어요', cat.emoji);
-    };
+      showToast('목록을 수정했어요', emoji);
+    }
+  
+    // 일정이 있는 목록 삭제 경고 (2.9.54)
+    let dlCatDelTarget = null;
+    function dlAskDeleteCategory(id) {
+      const cat = categories.find(c => c.id === id);
+      if (!cat) return;
+      const n = items.filter(it => it.categoryId === id).length;
+      const msg = document.getElementById('catDelMsg');
+      if (msg) msg.textContent = "'" + cat.name + "' 목록에 일정이 " + n + "개 있어요. 지우면 그 일정들은 '일반'으로 바뀌어요. 정말 지우시겠습니까?";
+      dlCatDelTarget = id;
+      const m = document.getElementById('modalCatDelete');
+      if (m) m.classList.remove('opacity-0', 'pointer-events-none');
+    }
+    function dlCloseCatDelete() {
+      dlCatDelTarget = null;
+      const m = document.getElementById('modalCatDelete');
+      if (m) m.classList.add('opacity-0', 'pointer-events-none');
+    }
+    function dlConfirmDeleteCategory() {
+      const id = dlCatDelTarget;
+      dlCloseCatDelete();
+      if (id) dlDoDeleteCategory(id);
+    }
+  
+    // 일정이 있는 목록 편집 확인 (2.9.54): 이름·이모지는 기존 일정에도 같이 적용됨
+    let dlCatEditPending = null;
+    function dlAskEditCategory(cat, name, emoji, used) {
+      dlCatEditPending = { id: cat.id, name, emoji };
+      const msg = document.getElementById('catEditMsg');
+      if (msg) msg.textContent = '이 목록의 기존 일정 ' + used + '개에도 새 이름·이모지가 같이 적용돼요. 정말 바꿀까요?';
+      const m = document.getElementById('modalCatEdit');
+      if (m) m.classList.remove('opacity-0', 'pointer-events-none');
+    }
+    function dlCloseCatEdit() {
+      dlCatEditPending = null;
+      const m = document.getElementById('modalCatEdit');
+      if (m) m.classList.add('opacity-0', 'pointer-events-none');
+    }
+    function dlConfirmEditCategory() {
+      const p = dlCatEditPending;
+      dlCloseCatEdit();
+      if (p) dlApplyCategoryEdit(p.id, p.name, p.emoji);
+    }
   </script>
 </body>
 </html>
