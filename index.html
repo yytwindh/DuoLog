@@ -1182,7 +1182,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
 
     let selectedDate = formatDate(todayObj);
     let selectedUserFilter = 'all'; // 'all' | 'p1' | 'p2'
-    let selectedCategoryFilter = 'all'; // 'all' | categoryId
+    let selectedCategoryFilter = 'all'; // 'all' | categoryId (레거시 미러: dlCatSel이 비면 'all', 아니면 첫 선택)
+    let dlCatSel = []; // 다중 선택된 카테고리 id들. 비어 있으면 전체 보기 상태
+    function dlCatMatch(catId) { return dlCatSel.length === 0 || dlCatSel.includes(catId); }
     let activeNavTab = 'schedule'; // 'schedule' | 'routines' | 'shared'
 
     // 유저 프로필 정보 (기본값)
@@ -1290,7 +1292,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
 
         // 일정 점: 소유자 색 기준 — 동호 파랑·뱁새 분홍·함께 노랑 (2.9.28)
         const dotOwners = { p1: false, p2: false, both: false };
-        items.forEach(it => { if (it.date === dateStr && dlOwnerVisible(it) && (selectedCategoryFilter === 'all' || it.categoryId === selectedCategoryFilter) && dotOwners[it.owner] !== undefined) dotOwners[it.owner] = true; });
+        items.forEach(it => { if (it.date === dateStr && dlOwnerVisible(it) && dlCatMatch(it.categoryId) && dotOwners[it.owner] !== undefined) dotOwners[it.owner] = true; });
         let dotsHtml = '';
         if (isToday && !isSelected) dotsHtml += '<span class="w-1.5 h-1.5 rounded-full border-2 border-indigo-600"></span>';
         if (dotOwners.p1) dotsHtml += '<span class="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>';
@@ -1338,7 +1340,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const allBtn = document.createElement('button');
       allBtn.onclick = () => setCategoryFilter('all');
       allBtn.className = `px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
-        selectedCategoryFilter === 'all'
+        dlCatSel.length === 0
           ? 'bg-gray-900 text-white shadow-sm'
           : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
       }`;
@@ -1349,13 +1351,13 @@ Check your Browserslist config to be sure that your targets are set up correctly
       categories.forEach(cat => {
         const btn = document.createElement('button');
         btn.onclick = () => setCategoryFilter(cat.id);
-        const isActive = selectedCategoryFilter === cat.id;
+        const isActive = dlCatSel.includes(cat.id);
         btn.className = `px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 transition-all duration-200 ${
           isActive
             ? 'bg-indigo-600 text-white shadow-sm'
             : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
         }`;
-        btn.innerHTML = `<span>${cat.emoji}</span><span>${cat.name}</span>`;
+        btn.innerHTML = `<span>${cat.emoji}</span><span>${cat.name}</span>${isActive ? '<span>✓</span>' : ''}`;
         container.appendChild(btn);
       });
 
@@ -1368,7 +1370,11 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
 
     function setCategoryFilter(catId) {
-      selectedCategoryFilter = catId;
+      if (catId === 'all') dlCatSel = [];
+      else if (dlCatSel.includes(catId)) dlCatSel = dlCatSel.filter(x => x !== catId);
+      else dlCatSel = dlCatSel.concat([catId]);
+      dlCatSel = dlCatSel.filter(id => categories.some(c => c.id === id));
+      selectedCategoryFilter = dlCatSel.length === 0 ? 'all' : dlCatSel[0];
       renderCategoryPills();
       renderItems();
     }
@@ -1408,8 +1414,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       }
 
       // 3. 카테고리 필터링
-      if (selectedCategoryFilter !== 'all') {
-        filtered = filtered.filter(it => it.categoryId === selectedCategoryFilter);
+      if (dlCatSel.length) {
+        filtered = filtered.filter(it => dlCatSel.includes(it.categoryId));
       }
 
       // 4. 네비게이션 탭에 따른 필터링 (루틴 탭 or 버킷 탭)
@@ -2091,7 +2097,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         const isSel = ds === selectedDate;
         const isToday = ds === todayStr;
         const dow = d.getDay();
-        const dayItems = items.filter(it => it.date === ds && dlOwnerVisible(it) && (selectedCategoryFilter === 'all' || it.categoryId === selectedCategoryFilter));
+        const dayItems = items.filter(it => it.date === ds && dlOwnerVisible(it) && dlCatMatch(it.categoryId));
         const holName = (typeof getHoliday === 'function') ? getHoliday(ds) : null;
         const msDays = (typeof dlMilestone === 'function') ? dlMilestone(ds) : 0;
         const spDay = (typeof dlSpecialDay === 'function') ? dlSpecialDay(ds) : null;
@@ -3170,7 +3176,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     function renderRoutineChips() {
       const box = document.getElementById('routineChips');
       if (!box) return;
-      const filter = (typeof selectedCategoryFilter !== 'undefined') ? selectedCategoryFilter : 'all';
+      const filter = (typeof dlCatSel !== 'undefined' && dlCatSel.length) ? dlCatSel.slice() : 'all';
       const chipHtml = r => {
         const cat = categories.find(c => c.id === r.categoryId) || { emoji: '💪' };
         const dot = r.owner === 'p1' ? '#6366F1' : r.owner === 'p2' ? '#EC4899' : '#F59E0B';
@@ -3181,7 +3187,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       let out = '';
       const knownIds = categories.map(c => c.id);
       categories.forEach(cat => {
-        if (filter !== 'all' && filter !== cat.id) return;
+        if (filter !== 'all' && !filter.includes(cat.id)) return;
         const rs = routines.filter(r => r.categoryId === cat.id);
         const isIpo = cat.id === 'cat-ipo';
         if (!rs.length) return;
@@ -5351,7 +5357,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.62', code: 72 };
+    window.DL_VERSION = { name: '2.9.63', code: 73 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -5722,7 +5728,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const idx = categories.findIndex(c => c.id === id);
       if (idx < 0) return;
       categories.splice(idx, 1);
-      if (typeof selectedCategoryFilter !== 'undefined' && selectedCategoryFilter === id) selectedCategoryFilter = 'all';
+      if (typeof dlCatSel !== 'undefined') dlCatSel = dlCatSel.filter(x => x !== id);
+      if (typeof selectedCategoryFilter !== 'undefined' && selectedCategoryFilter === id) selectedCategoryFilter = (typeof dlCatSel !== 'undefined' && dlCatSel.length) ? dlCatSel[0] : 'all';
       if (dlCatEditId === id) dlResetCatForm();
       persistData();
       renderCategoryPills();
