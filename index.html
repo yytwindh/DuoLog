@@ -5251,7 +5251,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.54', code: 64 };
+    window.DL_VERSION = { name: '2.9.55', code: 65 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -5623,7 +5623,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
     function dlDeleteCategory(btn, id) {
       const used = items.filter(it => it.categoryId === id).length;
-      if (used > 0) { dlAskDeleteCategory(id); return; }
+      const usedR = (typeof routines !== 'undefined' && Array.isArray(routines)) ? routines.filter(r => r.categoryId === id).length : 0;
+      if (used + usedR > 0) { dlAskDeleteCategory(id); return; }
       if (!btn.dataset.armed) {
         btn.dataset.armed = '1'; btn.textContent = '정말 삭제?';
         setTimeout(() => { if (btn.isConnected) { delete btn.dataset.armed; btn.textContent = '삭제'; } }, 3000);
@@ -5680,8 +5681,12 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const cat = categories.find(c => c.id === id);
       if (!cat) return;
       const n = items.filter(it => it.categoryId === id).length;
+      const rn = (typeof routines !== 'undefined' && Array.isArray(routines)) ? routines.filter(r => r.categoryId === id).length : 0;
+      const details = [];
+      if (n > 0) details.push("일정 " + n + "개는 '일반'으로 바뀌어요.");
+      if (rn > 0) details.push("루틴 " + rn + "개는 '기타'로 옮겨져요.");
       const msg = document.getElementById('catDelMsg');
-      if (msg) msg.textContent = "'" + cat.name + "' 목록에 일정이 " + n + "개 있어요. 지우면 그 일정들은 '일반'으로 바뀌어요. 정말 지우시겠습니까?";
+      if (msg) msg.textContent = "'" + cat.name + "' 목록을 지우면 " + details.join(' ') + " 정말 지우시겠습니까?";
       dlCatDelTarget = id;
       const m = document.getElementById('modalCatDelete');
       if (m) m.classList.remove('opacity-0', 'pointer-events-none');
@@ -5716,6 +5721,72 @@ Check your Browserslist config to be sure that your targets are set up correctly
       dlCloseCatEdit();
       if (p) dlApplyCategoryEdit(p.id, p.name, p.emoji);
     }
+  
+    /* ----------------------------------------------------
+       89. 목록 항목별 병합 (2.9.55)
+       - applyRemoteData 래핑: 원격 스냅샷에 없는 로컬 목록 유지, 삭제된 목록은 tombstones.category로 전파
+       - 동시 편집(같은 목록 이름·이모지)은 일정과 같은 규칙으로 원격 우선
+    ---------------------------------------------------- */
+    const _origTb89 = dlTombstones;
+    dlTombstones = function () {
+      const tb = _origTb89.apply(this, arguments);
+      if (!Array.isArray(tb.category)) tb.category = [];
+      return tb;
+    };
+    function dlCatTbAdd(id) {
+      const tb = dlTombstones();
+      if (tb.category.indexOf(id) < 0) {
+        tb.category.push(id);
+        if (tb.category.length > 100) tb.category = tb.category.slice(tb.category.length - 100);
+      }
+    }
+    const _origApplyRemote89 = applyRemoteData;
+    applyRemoteData = async function (ts, data) {
+      const localCats = (typeof categories !== 'undefined' && Array.isArray(categories)) ? categories.slice() : [];
+      let localTbCat = [];
+      try { localTbCat = (dlTombstones().category || []).slice(); } catch (e) {}
+      const r = await _origApplyRemote89.apply(this, arguments);
+      try {
+        const tb = dlTombstones();
+        localTbCat.forEach(id => { if (tb.category.indexOf(id) < 0) tb.category.push(id); });
+        if (data && Array.isArray(data.categories) && typeof categories !== 'undefined') {
+          const before = categories.map(c => c.id).join(',');
+          categories = categories.filter(c => tb.category.indexOf(c.id) < 0);
+          const ids = new Set(categories.map(c => c.id));
+          localCats.forEach(c => { if (!ids.has(c.id) && tb.category.indexOf(c.id) < 0) { categories.push(c); ids.add(c.id); } });
+          if (categories.map(c => c.id).join(',') !== before) {
+            persistData();
+            if (typeof renderCategoryPills === 'function') renderCategoryPills();
+            if (typeof renderItems === 'function') renderItems();
+            if (typeof renderRoutineChips === 'function') renderRoutineChips();
+          }
+        }
+      } catch (e) {}
+      return r;
+    };
+    const _origDoDeleteCategory89 = dlDoDeleteCategory;
+    dlDoDeleteCategory = function (id) {
+      const existed = categories.some(c => c.id === id);
+      const r = _origDoDeleteCategory89.apply(this, arguments);
+      if (existed && !categories.some(c => c.id === id)) dlCatTbAdd(id);
+      return r;
+    };
+  
+    // 삭제된 목록에 속한 루틴은 편집해도 카테고리가 비지 않게 임시 선택지를 유지 (2.9.55)
+    const _origEditRoutine91 = editRoutine;
+    editRoutine = function (id) {
+      _origEditRoutine91(id);
+      const r = routines.find(x => x.id === id);
+      if (!r || !r.categoryId) return;
+      const sel = document.getElementById('routineCategory');
+      if (sel && !categories.some(c => c.id === r.categoryId)) {
+        const opt = document.createElement('option');
+        opt.value = r.categoryId;
+        opt.textContent = '📌 일반 (삭제된 목록)';
+        sel.appendChild(opt);
+        sel.value = r.categoryId;
+      }
+    };
   </script>
 </body>
 </html>
