@@ -4771,7 +4771,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
     const _origBucketSubmit52 = handleBucketSubmit;
     handleBucketSubmit = function (e) {
-      const isNew = !document.getElementById('bucketEditId').value;
+      const _bkIdEl101 = document.getElementById('bucketId');
+      const isNew = !(_bkIdEl101 && _bkIdEl101.value);
       const tEl = document.getElementById('bucketTitle');
       const title = tEl ? tEl.value.trim() : '';
       const r = _origBucketSubmit52.apply(this, arguments);
@@ -4804,7 +4805,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
     const _origMoneySubmit52 = handleMoneySubmit;
     handleMoneySubmit = function (e) {
-      const isNew = !document.getElementById('moneyEditId').value;
+      const _mnIdEl101 = document.getElementById('moneyId');
+      const isNew = !(_mnIdEl101 && _mnIdEl101.value);
       const r = _origMoneySubmit52.apply(this, arguments);
       try {
         if (isNew) dlFeedPush('money', '님이 머니로드에 새 스텝을 추가했어요');
@@ -5357,7 +5359,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.63', code: 73 };
+    window.DL_VERSION = { name: '2.9.64', code: 74 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
