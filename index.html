@@ -436,6 +436,57 @@ Check your Browserslist config to be sure that your targets are set up correctly
           </div>
         </div>
 
+        <!-- 공모주 인라인 입력 (2.9.57): 카테고리에서 공모주를 고르면 같은 폼 안에서 이 칸들로 바뀜 -->
+        <div id="ipoInlineFields" class="hidden space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5">종목명</label>
+            <input type="text" id="ifName" placeholder="예: 에이엘로봇"
+                   class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm font-medium transition">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1.5">주관사</label>
+              <input type="text" id="ifBroker" placeholder="예: 대신증권"
+                     class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1.5">확정공모가 (원)</label>
+              <input type="number" id="ifPrice" inputmode="numeric" placeholder="예: 17600"
+                     class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 mb-1.5">균등 증거금 (원, 선택)</label>
+            <input type="number" id="ifDeposit" inputmode="numeric" placeholder="예: 88000"
+                   class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1.5">청약 시작일</label>
+              <input type="date" id="ifSubStart"
+                     class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1.5">청약 종료일</label>
+              <input type="date" id="ifSubEnd"
+                     class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1.5">환불일 (선택)</label>
+              <input type="date" id="ifRefund"
+                     class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 mb-1.5">상장일</label>
+              <input type="date" id="ifListing"
+                     class="w-full px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 focus:outline-none focus:border-indigo-500 text-xs font-medium">
+            </div>
+          </div>
+          <p class="text-[11px] text-gray-400">저장하면 청약 시작일과 상장일 일정이 함께 등록돼요. 다른 카테고리를 누르면 일반 입력으로 돌아가요.</p>
+        </div>
+
         <!-- 3. 일정/할일/운동 제목 -->
         <div>
           <label class="block text-xs font-semibold text-gray-500 mb-1.5">제목</label>
@@ -5251,7 +5302,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.56', code: 66 };
+    window.DL_VERSION = { name: '2.9.57', code: 67 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -5568,21 +5619,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       radios.forEach(r => r.addEventListener('change', () => { custom.value = ''; }));
     })();
   
-    // 공모주 카테고리 칩을 누르면 공모주 전용 입력 폼으로 전환 (2.9.52)
-    (function () {
-      const box = document.getElementById('formCategoryChips');
-      if (!box) return;
-      box.addEventListener('click', e => {
-        const label = e.target.closest('label');
-        if (!label) return;
-        const inp = label.querySelector('input[name="formCategory"]');
-        if (!inp || inp.value !== 'cat-ipo') return;
-        const idEl = document.getElementById('itemId');
-        if (idEl && idEl.value) return;
-        if (typeof closeNewItemModal === 'function') closeNewItemModal();
-        if (typeof openIpoModal === 'function') openIpoModal();
-      });
-    })();
+    // (2.9.57에서 교체) 공모주 칩 전환은 별도 창이 아니라 같은 폼 안 인라인 전환 — 93번 참조
   
     // 목록 편집·삭제 (2.9.53): 기본 목록 4개는 앱 기능과 연결돼 있어 편집만, 추가한 목록은 삭제도 가능
     let dlCatEditId = null;
@@ -5834,6 +5871,61 @@ Check your Browserslist config to be sure that your targets are set up correctly
     dlApplyCategoryEdit = function () { const r = _origApplyCatEdit92.apply(this, arguments); dlRefreshFormChipsIfOpen(); return r; };
     const _origDoDelCat92 = dlDoDeleteCategory;
     dlDoDeleteCategory = function () { const r = _origDoDelCat92.apply(this, arguments); dlRefreshFormChipsIfOpen(); return r; };
+  
+    // 공모주 인라인 전환 (2.9.57): 별도 창으로 바꾸지 않고 같은 폼 안에서 입력칸만 교체 — 잘못 눌러도 다른 칩을 누르면 그대로 돌아옴
+    let dlIpoInlineMode = false;
+    function dlSetIpoMode(on) {
+      dlIpoInlineMode = !!on;
+      const sec = document.getElementById('ipoInlineFields');
+      if (sec) sec.classList.toggle('hidden', !dlIpoInlineMode);
+      const t = document.getElementById('itemTitle');
+      if (t) { if (t.closest('div')) t.closest('div').classList.toggle('hidden', dlIpoInlineMode); t.required = !dlIpoInlineMode; }
+      const dt = document.getElementById('itemDate');
+      if (dt) { const g = dt.closest('.grid'); if (g) g.classList.toggle('hidden', dlIpoInlineMode); dt.required = !dlIpoInlineMode; }
+      const m = document.getElementById('itemMemo');
+      if (m && m.closest('div')) m.closest('div').classList.toggle('hidden', dlIpoInlineMode);
+      const r = document.getElementById('itemRepeat');
+      if (r && r.closest('div')) r.closest('div').classList.toggle('hidden', dlIpoInlineMode);
+    }
+    function dlSyncIpoInlineMode() {
+      const idEl = document.getElementById('itemId');
+      if (idEl && idEl.value) { dlSetIpoMode(false); return; }
+      const checked = document.querySelector('input[name="formCategory"]:checked');
+      dlSetIpoMode(!!checked && checked.value === 'cat-ipo');
+    }
+    (function () {
+      const box = document.getElementById('formCategoryChips');
+      if (!box) return;
+      box.addEventListener('change', e => { if (e.target && e.target.name === 'formCategory') dlSyncIpoInlineMode(); });
+      box.addEventListener('click', () => setTimeout(dlSyncIpoInlineMode, 0));
+    })();
+    const _origOpenNewItem93 = openNewItemModal;
+    openNewItemModal = function () { const r = _origOpenNewItem93.apply(this, arguments); dlSetIpoMode(false); return r; };
+    const _origItemSubmit93 = handleItemSubmit;
+    handleItemSubmit = function (e) {
+      if (dlIpoInlineMode && !(document.getElementById('itemId') || {}).value) {
+        e.preventDefault();
+        const name = document.getElementById('ifName').value.trim();
+        if (!name) { showToast('종목명을 입력해주세요', '⚠️'); return; }
+        document.getElementById('ipoName').value = name;
+        document.getElementById('ipoBroker').value = document.getElementById('ifBroker').value;
+        document.getElementById('ipoPrice').value = document.getElementById('ifPrice').value;
+        document.getElementById('ipoDeposit').value = document.getElementById('ifDeposit').value;
+        document.getElementById('ipoSubStart').value = document.getElementById('ifSubStart').value;
+        document.getElementById('ipoSubEnd').value = document.getElementById('ifSubEnd').value;
+        document.getElementById('ipoRefund').value = document.getElementById('ifRefund').value;
+        document.getElementById('ipoListing').value = document.getElementById('ifListing').value;
+        const ownerRadio = document.querySelector('input[name="owner"]:checked');
+        const ov = ownerRadio ? ownerRadio.value : 'both';
+        const orad = document.querySelector('input[name="ipoOwner"][value="' + ov + '"]');
+        if (orad) orad.checked = true;
+        const before = items.length;
+        handleIpoSubmit({ preventDefault() {} });
+        if (items.length > before) { dlSetIpoMode(false); closeNewItemModal(); }
+        return;
+      }
+      return _origItemSubmit93.apply(this, arguments);
+    };
   </script>
 </body>
 </html>
