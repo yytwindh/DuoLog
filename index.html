@@ -1455,8 +1455,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
             <!-- 체크박스 & 제목 영역 -->
             <div class="flex items-start gap-3 flex-1 min-w-0">
               <button onclick="toggleItemComplete('${item.id}')" class="mt-0.5 w-5 h-5 rounded-lg border flex items-center justify-center transition ${
-                (item.owner !== 'both' && dlMySlotSafe() && item.owner !== dlMySlotSafe()) ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed' :
-                dlMyDone(item) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 hover:border-gray-400 bg-white'
+                dlMyDone(item) ? 'bg-emerald-500 border-emerald-500 text-white' :
+                (item.owner !== 'both' && dlMySlotSafe() && item.owner !== dlMySlotSafe()) ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed' : 'border-gray-300 hover:border-gray-400 bg-white'
               }">
                 ${dlMyDone(item) ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}
               </button>
@@ -5351,7 +5351,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.59', code: 69 };
+    window.DL_VERSION = { name: '2.9.60', code: 70 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -6038,7 +6038,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const me = dlMySlotSafe();
       if (!it || !me) return _origToggle96.apply(this, arguments);
       if (it.owner !== 'both' && it.owner !== me) {
-        showToast('남의 일정은 완료할 수 없어요', '🔒');
+        showToast(it.completed ? '남이 완료한 일정은 취소할 수 없어요' : '남의 일정은 완료할 수 없어요', '🔒');
         return;
       }
       const wasFull = dlIsFullDone(it);
