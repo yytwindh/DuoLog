@@ -1800,7 +1800,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
        - 채널명 = 코드의 SHA-256 해시, 데이터는 코드에서 파생한 키로 암호화
        - 마지막 저장(last-write-wins, 타임스탬프 기준)으로 병합
     ---------------------------------------------------- */
-    const SYNC_BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
+    const SYNC_BROKERS = ['wss://i610c4d2.ala.asia-southeast1.emqxsl.com:8084/mqtt', 'wss://broker.emqx.io:8084/mqtt'];
+    const DL_CLOUD_AUTH = { username: 'duolog-app', password: 'Du0l0g-App!2026-MQTT#9k2v' };
+    function dlBrokerAuth(url) { return String(url).indexOf('emqxsl.com') >= 0 ? DL_CLOUD_AUTH : {}; }
     // 저장소 접근이 막힌 환경에서도 앱 전체가 죽지 않도록 감싼 헬퍼
     const syncStore = {
       get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -1935,7 +1937,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
 
       let anyConnected = false;
       SYNC_BROKERS.forEach(brokerUrl => {
+        const _ba104 = dlBrokerAuth(brokerUrl);
         const client = mqtt.connect(brokerUrl, {
+          username: _ba104.username, password: _ba104.password,
           clientId: 'duolog-' + Math.random().toString(36).slice(2, 10),
           reconnectPeriod: 3000,
           connectTimeout: 7000,
@@ -4158,7 +4162,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const clients = [];
       SYNC_BROKERS.forEach(url => {
         try {
-          const c = mqtt.connect(url, { clientId: 'duolog-acct-' + Math.random().toString(36).slice(2, 10), reconnectPeriod: 0, connectTimeout: 7000, clean: true });
+          const _ba104b = dlBrokerAuth(url);
+          const c = mqtt.connect(url, { username: _ba104b.username, password: _ba104b.password, clientId: 'duolog-acct-' + Math.random().toString(36).slice(2, 10), reconnectPeriod: 0, connectTimeout: 7000, clean: true });
           c.on('message', (t, p) => { try { onPayload(p.toString()); } catch (e) {} });
           clients.push(c);
         } catch (e) {}
@@ -5360,7 +5365,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.66', code: 76 };
+    window.DL_VERSION = { name: '2.9.67', code: 77 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
