@@ -1847,9 +1847,23 @@ Check your Browserslist config to be sure that your targets are set up correctly
       return a;
     }
 
+    async function dlGzipBytes105(bytes) {
+      try {
+        if (typeof CompressionStream === 'undefined') return null;
+        const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+      } catch (e) { return null; }
+    }
+    async function dlGunzipText105(bytes) {
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+      return await new Response(stream).text();
+    }
+
     async function syncEncrypt(obj) {
       const iv = crypto.getRandomValues(new Uint8Array(12));
-      const data = new TextEncoder().encode(JSON.stringify(obj));
+      let data = new TextEncoder().encode(JSON.stringify(obj));
+      const gz105 = await dlGzipBytes105(data);
+      if (gz105 && gz105.length < data.length) data = gz105;
       const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, syncKey, data);
       const out = new Uint8Array(12 + ct.byteLength);
       out.set(iv);
@@ -1861,6 +1875,8 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const raw = b64decode(b64);
       const iv = raw.slice(0, 12);
       const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, syncKey, raw.slice(12));
+      const ptBytes105 = new Uint8Array(pt);
+      if (ptBytes105[0] === 0x1f && ptBytes105[1] === 0x8b) return JSON.parse(await dlGunzipText105(ptBytes105));
       return JSON.parse(new TextDecoder().decode(pt));
     }
 
@@ -5365,7 +5381,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.67', code: 77 };
+    window.DL_VERSION = { name: '2.9.68', code: 78 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
