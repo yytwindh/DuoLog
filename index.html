@@ -5381,7 +5381,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.68', code: 78 };
+    window.DL_VERSION = { name: '2.9.69', code: 79 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -6086,6 +6086,155 @@ Check your Browserslist config to be sure that your targets are set up correctly
         showToast('내 완료를 눌렀어요. 상대가 누르면 완료돼요', '☝️');
       }
     };
+  
+    // ===== 106) 델타 동기화 A단계 (dual) =====
+    let dlDeltaClients106 = [];
+    let dlDeltaBaseline106 = null;
+    let dlLastMts106 = 0;
+    const DL_COLS106 = [
+      { col: 'items', get: () => items, tb: 'item' },
+      { col: 'buckets', get: () => (typeof buckets !== 'undefined' ? buckets : []), tb: 'bucket' },
+      { col: 'money', get: () => (typeof moneySteps !== 'undefined' ? moneySteps : []), tb: 'money' },
+      { col: 'feed', get: () => (typeof dlFeed !== 'undefined' ? dlFeed : []), tb: null }
+    ];
+    function dlSyncMode106() {
+      const m = (typeof duoProfile !== 'undefined' && duoProfile && duoProfile.syncMode) || 'dual';
+      return (m === 'snap' || m === 'delta') ? m : 'dual';
+    }
+    function dlDeltaPrefix106() { return syncTopic ? 'duolog/v2/' + syncTopic.slice('duolog/v1/'.length) : null; }
+    function dlNextMts106() { const n = Date.now(); dlLastMts106 = Math.max(n, dlLastMts106 + 1); return dlLastMts106; }
+    function dlStrip106(ent) { if (!ent || typeof ent !== 'object') return ''; const c = Object.assign({}, ent); delete c.mts; return JSON.stringify(c); }
+    function dlRebuildBaseline106() {
+      const base = {};
+      DL_COLS106.forEach(cfg => {
+        const m = new Map();
+        (cfg.get() || []).forEach(ent => {
+          if (ent && ent.id != null) { m.set(String(ent.id), dlStrip106(ent)); if (ent.mts && ent.mts > dlLastMts106) dlLastMts106 = ent.mts; }
+        });
+        base[cfg.col] = m;
+      });
+      dlDeltaBaseline106 = base;
+    }
+    function dlCollectChanges106() {
+      const changes = [];
+      if (!dlDeltaBaseline106) return changes;
+      DL_COLS106.forEach(cfg => {
+        const arr = cfg.get() || [];
+        const base = dlDeltaBaseline106[cfg.col] || new Map();
+        const seen = new Set();
+        arr.forEach(ent => {
+          if (!ent || ent.id == null) return;
+          const id = String(ent.id); seen.add(id);
+          if (base.get(id) !== dlStrip106(ent)) { ent.mts = dlNextMts106(); changes.push({ col: cfg.col, id: id, ent: ent, mts: ent.mts }); }
+        });
+        base.forEach((v, id) => { if (!seen.has(id)) changes.push({ col: cfg.col, id: id, del: true, mts: dlNextMts106() }); });
+      });
+      return changes;
+    }
+    function dlDeltaStart106() {
+      if (dlDeltaClients106.length || !syncTopic || !syncKey) return;
+      const prefix = dlDeltaPrefix106(); if (!prefix) return;
+      SYNC_BROKERS.forEach(url => {
+        try {
+          const auth = dlBrokerAuth(url);
+          const c = mqtt.connect(url, { username: auth.username, password: auth.password, clientId: 'duolog-delta-' + Math.random().toString(36).slice(2, 10), reconnectPeriod: 3000, connectTimeout: 7000, clean: true });
+          c.on('connect', () => { try { c.subscribe(prefix + '/e/#', { qos: 1 }); } catch (e) {} });
+          c.on('message', (topic, payload) => { dlOnDeltaMessage106(topic, payload); });
+          dlDeltaClients106.push(c);
+        } catch (e) {}
+      });
+    }
+    function dlDeltaStop106() { dlDeltaClients106.forEach(c => { try { c.end(true); } catch (e) {} }); dlDeltaClients106 = []; }
+    async function dlPublishChanges106(changes) {
+      const prefix = dlDeltaPrefix106(); if (!prefix || !changes.length) return;
+      const targets = dlDeltaClients106.filter(c => c.connected);
+      if (!targets.length) return;
+      for (const ch of changes) {
+        try {
+          const body = ch.del ? { mts: ch.mts, del: true } : { mts: ch.mts, ent: ch.ent };
+          const payload = await syncEncrypt(body);
+          targets.forEach(c => { try { c.publish(prefix + '/e/' + ch.col + '/' + ch.id, payload, { retain: true, qos: 1 }); } catch (e) {} });
+        } catch (e) {}
+      }
+    }
+    async function dlOnDeltaMessage106(topic, payload) {
+      try {
+        if (dlSyncMode106() === 'snap') return;
+        const prefix = dlDeltaPrefix106(); if (!prefix || topic.indexOf(prefix + '/e/') !== 0) return;
+        const rest = topic.slice((prefix + '/e/').length).split('/');
+        if (rest.length !== 2) return;
+        const cfg = DL_COLS106.find(x => x.col === rest[0]); if (!cfg) return;
+        const msg = await syncDecrypt(payload.toString());
+        if (!msg || typeof msg.mts !== 'number') return;
+        dlApplyDelta106(cfg, rest[1], msg);
+      } catch (e) {}
+    }
+    function dlRenderCol106(col) {
+      if (col === 'items') { renderDateStrip(); renderItems(); }
+      else if (col === 'buckets') { if (typeof renderBuckets === 'function') renderBuckets(); }
+      else if (col === 'money') { if (typeof renderMoney === 'function') renderMoney(); }
+      else if (col === 'feed') { if (typeof renderNotifs === 'function') renderNotifs(); }
+    }
+    function dlApplyDelta106(cfg, id, msg) {
+      const arr = cfg.get(); if (!arr) return;
+      if (msg.mts > dlLastMts106) dlLastMts106 = msg.mts;
+      const idx = arr.findIndex(e => e && String(e.id) === id);
+      let changed = false;
+      syncApplying = true;
+      try {
+        if (msg.del) {
+          if (idx >= 0 && (arr[idx].mts || 0) <= msg.mts) { arr.splice(idx, 1); changed = true; }
+          if (cfg.tb && typeof duoProfile !== 'undefined' && duoProfile) {
+            duoProfile.tombstones = duoProfile.tombstones || { bucket: [], money: [], routine: [], item: [], category: [] };
+            const tbArr = duoProfile.tombstones[cfg.tb] = duoProfile.tombstones[cfg.tb] || [];
+            if (!tbArr.some(t => String(t) === id)) tbArr.push(isNaN(Number(id)) ? id : Number(id));
+          }
+          if (dlDeltaBaseline106 && dlDeltaBaseline106[cfg.col]) dlDeltaBaseline106[cfg.col].delete(id);
+        } else if (msg.ent) {
+          const tb = (cfg.tb && typeof duoProfile !== 'undefined' && duoProfile && duoProfile.tombstones) ? (duoProfile.tombstones[cfg.tb] || []) : [];
+          if (tb.some(t => String(t) === id)) return;
+          const ent = msg.ent; ent.mts = msg.mts;
+          if (idx >= 0) { if ((arr[idx].mts || 0) < msg.mts) { arr[idx] = ent; changed = true; } else return; }
+          else { arr.push(ent); changed = true; }
+          if (dlDeltaBaseline106 && dlDeltaBaseline106[cfg.col]) dlDeltaBaseline106[cfg.col].set(id, dlStrip106(ent));
+        }
+      } finally { syncApplying = false; }
+      if (changed) { persistData(); dlRenderCol106(cfg.col); }
+    }
+    const _origPushSync106 = pushSync;
+    pushSync = async function () {
+      const mode = dlSyncMode106();
+      let changes = [];
+      const canDelta = mode !== 'snap' && !!dlDeltaBaseline106 && syncClients.some(c => c.connected);
+      if (canDelta) { try { changes = dlCollectChanges106(); } catch (e) { changes = []; } }
+      const tsBefore = lastSyncTs;
+      await _origPushSync106();
+      if (lastSyncTs !== tsBefore) {
+        if (canDelta && changes.length) { try { await dlPublishChanges106(changes); } catch (e) {} }
+        dlRebuildBaseline106();
+      }
+    };
+    const _origApplyRemote106 = applyRemoteData;
+    applyRemoteData = function (ts, data) {
+      const stash = [];
+      DL_COLS106.forEach(cfg => { (cfg.get() || []).forEach(ent => { if (ent && ent.id != null && (ent.mts || 0) > ts) stash.push({ cfg: cfg, ent: ent }); }); });
+      _origApplyRemote106(ts, data);
+      stash.forEach(s => {
+        const arr = s.cfg.get(); if (!arr) return;
+        const idx = arr.findIndex(e => e && String(e.id) === String(s.ent.id));
+        if (idx >= 0) { if ((arr[idx].mts || 0) < (s.ent.mts || 0)) arr[idx] = s.ent; }
+        else {
+          const tb = (s.cfg.tb && typeof duoProfile !== 'undefined' && duoProfile && duoProfile.tombstones) ? (duoProfile.tombstones[s.cfg.tb] || []) : [];
+          if (!tb.some(t => String(t) === String(s.ent.id))) arr.push(s.ent);
+        }
+      });
+      if (stash.length) persistData();
+      dlRebuildBaseline106();
+    };
+    const _origConnectSync106 = connectSync;
+    connectSync = async function (code) { await _origConnectSync106(code); try { dlDeltaStart106(); } catch (e) {} };
+    const _origStopSync106 = stopSync;
+    stopSync = function () { try { dlDeltaStop106(); } catch (e) {} _origStopSync106(); };
   </script>
 </body>
 </html>
