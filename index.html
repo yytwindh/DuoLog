@@ -1545,7 +1545,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const it = items.find(x => x.id === id);
       if (!it) return;
       it.cheers = (it.cheers || 0) + 1;
+      if (typeof dlNextMts106 === 'function') { try { it.mts = dlNextMts106(); } catch (e) {} }
       persistData();
+      scheduleSyncPush();
       
       // 클릭 위치에 하트 파티클 이펙트 생성
       const bubble = document.createElement('div');
@@ -5361,6 +5363,16 @@ Check your Browserslist config to be sure that your targets are set up correctly
             if (typeof renderDateStrip === 'function') renderDateStrip();
             if (typeof renderMonthView === 'function' && typeof viewMode !== 'undefined' && viewMode === 'month') renderMonthView();
           }
+          let cheerFixed108 = false;
+          localItems.forEach(li => {
+            const cur = items.find(i => i.id === li.id);
+            if (cur && (li.cheers || 0) > (cur.cheers || 0)) { cur.cheers = li.cheers || 0; cheerFixed108 = true; }
+          });
+          if (cheerFixed108) {
+            persistData();
+            if (typeof renderItems === 'function') renderItems();
+            scheduleSyncPush();
+          }
         }
       } catch (e) {}
       return r;
@@ -5381,7 +5393,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.71', code: 81 };
+    window.DL_VERSION = { name: '2.9.72', code: 82 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
