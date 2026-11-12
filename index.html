@@ -253,6 +253,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
 
         <!-- 오늘 날짜 바로가기 버튼 & 알림 토스트 트리거 -->
         <div class="flex items-center gap-1.5">
+          <span id="dlSyncPill" class="px-2 py-1 text-[11px] font-semibold rounded-full bg-gray-100 text-gray-500 flex items-center gap-1" title="동기화 상태"><span id="dlSyncDot" class="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block"></span><span id="dlSyncPillTxt">꺼짐</span></span>
           <button onclick="goToToday()" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 active:scale-95 transition hover:bg-gray-200">
             오늘
           </button>
@@ -1971,15 +1972,16 @@ Check your Browserslist config to be sure that your targets are set up correctly
           client.subscribe(syncTopic, { qos: 1 });
           // 이 채널에 저장된 최신본이 도착할 시간을 준 뒤,
           // 예전 상태가 있는 기기만 자기 데이터를 다시 올린다 (빈 기기의 빈 덮어쓰기 방지)
-          setTimeout(() => { if (!gotRemoteHere) pushSync(); }, 2500);
+          setTimeout(() => { if (!gotRemoteHere) { try { dlForceSnap106 = true; } catch (e) {} pushSync(); } }, 2500);
         });
         client.on('message', async (topic, payload) => {
           gotRemoteHere = true;
           try {
             const msg = await syncDecrypt(payload.toString());
             if (msg && msg.ts && (msg.ts > lastSyncTs || (!items.length && msg.data && msg.data.items && msg.data.items.length))) {
+              const before109 = (typeof dlVisibleHash109 === 'function') ? dlVisibleHash109() : '';
               applyRemoteData(msg.ts, msg.data);
-              showToast('파트너의 최신 데이터로 동기화했어요', '🔄');
+              setTimeout(() => { try { if (typeof dlVisibleHash109 === 'function' && dlVisibleHash109() !== before109) showToast('파트너의 최신 데이터로 동기화했어요', '🔄'); } catch (e) {} }, 150);
             }
           } catch (e) { /* 다른 채널/손상 메시지 무시 */ }
         });
@@ -5393,7 +5395,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.72', code: 82 };
+    window.DL_VERSION = { name: '2.9.73', code: 83 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -6099,6 +6101,56 @@ Check your Browserslist config to be sure that your targets are set up correctly
       }
     };
   
+    // ===== 109) 동기화 상태 표시 + 토스트 정리 (2.9.73) =====
+    function dlSyncPill109(state) {
+      try {
+        const pill = document.getElementById('dlSyncPill'); if (!pill) return;
+        const dot = document.getElementById('dlSyncDot'); const txt = document.getElementById('dlSyncPillTxt');
+        let time = '';
+        try { const t = (window.dlLastPushTs109 || lastSyncTs) ? new Date(window.dlLastPushTs109 || lastSyncTs) : null; if (t) time = ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'); } catch (e) {}
+        const map = {
+          synced: ['연결됨' + time, '#22c55e', 'bg-green-50 text-green-600'],
+          pending: ['전송 대기 중', '#3b82f6', 'bg-blue-50 text-blue-600'],
+          connecting: ['연결 중…', '#f59e0b', 'bg-amber-50 text-amber-600'],
+          offline: ['연결 안 됨', '#9ca3af', 'bg-gray-100 text-gray-500']
+        };
+        const m = map[state] || map.offline;
+        if (txt) txt.innerText = m[0];
+        if (dot) dot.style.background = m[1];
+        pill.className = 'px-2 py-1 text-[11px] font-semibold rounded-full flex items-center gap-1 ' + m[2];
+      } catch (e) {}
+    }
+    function dlVisibleHash109() {
+      try {
+        const strip = (arr) => (arr || []).map(e => { if (!e || typeof e !== 'object') return e; const c = Object.assign({}, e); delete c.mts; return c; });
+        let p = {};
+        try { p = JSON.parse(JSON.stringify(duoProfile || {})); delete p.tombstones; delete p.syncMode; } catch (e) { p = {}; }
+        const s = JSON.stringify({ i: strip(items), c: categories, b: strip(typeof buckets !== 'undefined' ? buckets : []), m: strip(typeof moneySteps !== 'undefined' ? moneySteps : []), f: strip(typeof dlFeed !== 'undefined' ? dlFeed : []), p: p });
+        let h = 0; for (let k = 0; k < s.length; k++) { h = ((h << 5) - h + s.charCodeAt(k)) | 0; }
+        return h + ':' + s.length;
+      } catch (e) { return ''; }
+    }
+    const _origSyncSetStatus109 = syncSetStatus;
+    syncSetStatus = function (txt) {
+      const r = _origSyncSetStatus109.apply(this, arguments);
+      try {
+        if (txt === '연결됨') dlSyncPill109('synced');
+        else if (txt === '연결 중…' || txt === '재연결 중…') dlSyncPill109('connecting');
+        else dlSyncPill109('offline');
+      } catch (e) {}
+      return r;
+    };
+    const _origScheduleSyncPush109 = scheduleSyncPush;
+    scheduleSyncPush = function () {
+      const r = _origScheduleSyncPush109.apply(this, arguments);
+      try { if (syncCode && syncClients.some(c => c.connected)) dlSyncPill109('pending'); } catch (e) {}
+      return r;
+    };
+    if (typeof document !== 'undefined' && !window._dlVis109) {
+      window._dlVis109 = true;
+      document.addEventListener('visibilitychange', () => { if (document.hidden) { try { dlMaybeCheckpoint106(); } catch (e) {} } });
+    }
+  
     // ===== 106) 델타 동기화 A단계 (dual) =====
     let dlDeltaClients106 = [];
     let dlDeltaBaseline106 = null;
@@ -6110,7 +6162,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
       { col: 'feed', get: () => (typeof dlFeed !== 'undefined' ? dlFeed : []), tb: null }
     ];
     function dlSyncMode106() {
-      const m = (typeof duoProfile !== 'undefined' && duoProfile && duoProfile.syncMode) || 'dual';
+      const m = (typeof duoProfile !== 'undefined' && duoProfile && duoProfile.syncMode) || 'delta';
       return (m === 'snap' || m === 'delta') ? m : 'dual';
     }
     function dlDeltaPrefix106() { return syncTopic ? 'duolog/v2/' + syncTopic.slice('duolog/v1/'.length) : null; }
@@ -6155,8 +6207,9 @@ Check your Browserslist config to be sure that your targets are set up correctly
           dlDeltaClients106.push(c);
         } catch (e) {}
       });
+      if (!dlSnapTimer106) { dlSnapTimer106 = setInterval(() => { try { dlMaybeCheckpoint106(); } catch (e) {} }, 1800000); }
     }
-    function dlDeltaStop106() { dlDeltaClients106.forEach(c => { try { c.end(true); } catch (e) {} }); dlDeltaClients106 = []; }
+    function dlDeltaStop106() { dlDeltaClients106.forEach(c => { try { c.end(true); } catch (e) {} }); dlDeltaClients106 = []; if (dlSnapTimer106) { clearInterval(dlSnapTimer106); dlSnapTimer106 = null; } }
     async function dlPublishChanges106(changes) {
       const prefix = dlDeltaPrefix106(); if (!prefix || !changes.length) return;
       const targets = dlDeltaClients106.filter(c => c.connected);
@@ -6213,6 +6266,18 @@ Check your Browserslist config to be sure that your targets are set up correctly
       } finally { syncApplying = false; }
       if (changed) { persistData(); dlRenderCol106(cfg.col); }
     }
+    let dlLastSnapTs106 = 0;
+    let dlSnapDirty106 = false;
+    let dlForceSnap106 = false;
+    let dlSnapTimer106 = null;
+    let dlLastSnapOnlyHash106 = null;
+    function dlSnapOnlyHash106() { try { return JSON.stringify({ p: duoProfile, c: categories }); } catch (e) { return ''; } }
+    function dlMaybeCheckpoint106() {
+      if (!dlSnapDirty106) return;
+      if (!syncClients.some(c => c.connected)) return;
+      dlForceSnap106 = true;
+      try { pushSync(); } catch (e) {}
+    }
     const _origPushSync106 = pushSync;
     pushSync = async function () {
       const mode = dlSyncMode106();
@@ -6220,10 +6285,17 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const canDelta = mode !== 'snap' && !!dlDeltaBaseline106 && syncClients.some(c => c.connected);
       if (canDelta) { try { changes = dlCollectChanges106(); } catch (e) { changes = []; } }
       const tsBefore = lastSyncTs;
-      await _origPushSync106();
-      if (lastSyncTs !== tsBefore) {
-        if (canDelta && changes.length) { try { await dlPublishChanges106(changes); } catch (e) {} }
+      const snapOnlyChanged = dlSnapOnlyHash106() !== dlLastSnapOnlyHash106;
+      const wantSnap = mode !== 'delta' || !dlDeltaBaseline106 || dlForceSnap106 || snapOnlyChanged || (dlSnapDirty106 && Date.now() - dlLastSnapTs106 >= 1800000);
+      if (wantSnap) {
+        await _origPushSync106();
+        if (lastSyncTs !== tsBefore) { dlLastSnapTs106 = Date.now(); dlSnapDirty106 = false; dlForceSnap106 = false; dlLastSnapOnlyHash106 = dlSnapOnlyHash106(); }
+      }
+      if (lastSyncTs !== tsBefore || (mode === 'delta' && canDelta && changes.length)) {
+        if (canDelta && changes.length) { try { await dlPublishChanges106(changes); } catch (e) {} dlSnapDirty106 = true; }
         dlRebuildBaseline106();
+        try { window.dlLastPushTs109 = Date.now(); } catch (e) {}
+        if (typeof dlSyncPill109 === 'function') dlSyncPill109('synced');
       }
     };
     const _origApplyRemote106 = applyRemoteData;
