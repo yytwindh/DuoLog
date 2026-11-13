@@ -1462,10 +1462,11 @@ Check your Browserslist config to be sure that your targets are set up correctly
             <!-- 체크박스 & 제목 영역 -->
             <div class="flex items-start gap-3 flex-1 min-w-0">
               <button onclick="toggleItemComplete('${item.id}')" class="mt-0.5 w-5 h-5 rounded-lg border flex items-center justify-center transition ${
-                dlMyDone(item) ? 'bg-emerald-500 border-emerald-500 text-white' :
+                dlDoneLevel(item) === 2 ? 'bg-emerald-500 border-emerald-500 text-white' :
+                dlDoneLevel(item) === 1 ? 'border-transparent bg-transparent' :
                 (item.owner !== 'both' && dlMySlotSafe() && item.owner !== dlMySlotSafe()) ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed' : 'border-gray-300 hover:border-gray-400 bg-white'
               }">
-                ${dlMyDone(item) ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}
+                ${dlDoneLevel(item) === 2 ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : dlDoneLevel(item) === 1 ? '<svg class="w-5 h-5" viewBox="0 0 22 22"><circle cx="11" cy="11" r="9.5" fill="#fff" stroke="#10b981" stroke-width="1.6"/><path d="M11 1.5 A9.5 9.5 0 0 0 11 20.5 Z" fill="#10b981"/></svg>' : ''}
               </button>
 
               <div class="flex-1 min-w-0">
@@ -5332,7 +5333,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.74', code: 84 };
+    window.DL_VERSION = { name: '2.9.75', code: 85 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -6001,6 +6002,15 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const d = dlDoneBy(item);
       if (item.owner === 'both') return d.p1 && d.p2;
       return item.owner === 'p2' ? d.p2 : d.p1;
+    }
+    // 완료 단계 (2.9.75): 0=아무도 안 함, 1=함께 일정에서 한 명만 완료, 2=전부 완료. 단독 일정은 0/2만 나옴
+    function dlDoneLevel(item) {
+      const d = dlDoneBy(item);
+      if (item.owner === 'both') {
+        const n = (d.p1 ? 1 : 0) + (d.p2 ? 1 : 0);
+        return n === 2 ? 2 : n === 1 ? 1 : 0;
+      }
+      return dlIsFullDone(item) ? 2 : 0;
     }
     function dlMyDone(item) {
       const me = dlMySlotSafe();
