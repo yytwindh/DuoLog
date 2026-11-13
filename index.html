@@ -1466,7 +1466,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
                 dlDoneLevel(item) === 1 ? 'border-transparent bg-transparent' :
                 (item.owner !== 'both' && dlMySlotSafe() && item.owner !== dlMySlotSafe()) ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed' : 'border-gray-300 hover:border-gray-400 bg-white'
               }">
-                ${dlDoneLevel(item) === 2 ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : dlDoneLevel(item) === 1 ? '<svg class="w-5 h-5" viewBox="0 0 22 22"><circle cx="11" cy="11" r="9.5" fill="#fff" stroke="#10b981" stroke-width="1.6"/><path d="M11 1.5 A9.5 9.5 0 0 0 11 20.5 Z" fill="#10b981"/></svg>' : ''}
+                ${dlDoneLevel(item) === 2 ? '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : dlDoneLevel(item) === 1 ? '<svg class="w-5 h-5" viewBox="0 0 20 20"><rect x="0.75" y="0.75" width="18.5" height="18.5" rx="5" fill="#fff" stroke="#10b981" stroke-width="1.5"/><path d="M5.75 0.75 H10 V19.25 H5.75 A5 5 0 0 1 0.75 14.25 V5.75 A5 5 0 0 1 5.75 0.75 Z" fill="#10b981"/></svg>' : ''}
               </button>
 
               <div class="flex-1 min-w-0">
@@ -5333,7 +5333,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.75', code: 85 };
+    window.DL_VERSION = { name: '2.9.76', code: 86 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
