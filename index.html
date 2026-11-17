@@ -2659,10 +2659,11 @@ Check your Browserslist config to be sure that your targets are set up correctly
     let commentAuthor = 'p1';
     function storedRole() { try { return syncStore.get('duolog_my_role') || ''; } catch (e) { return ''; } }
 
-    function openComments(id) {
-      const it = items.find(x => x.id === id);
-      if (!it) return;
+    function openComments(id, kind) {
+      commentTargetKind = kind === 'bucket' ? 'bucket' : 'item';
       commentTargetId = id;
+      const it = dlCommentTarget();
+      if (!it) return;
       commentAuthor = storedRole() || 'p1';
       document.getElementById('commentItemTitle').textContent = it.title;
       renderCommentAuthorChips();
@@ -2693,7 +2694,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
     function renderCommentList() {
       const box = document.getElementById('commentList');
-      const it = items.find(x => x.id === commentTargetId);
+      const it = dlCommentTarget();
       if (!it) { box.innerHTML = ''; return; }
       const list = it.comments || [];
       if (!list.length) {
@@ -2716,22 +2717,25 @@ Check your Browserslist config to be sure that your targets are set up correctly
       const input = document.getElementById('commentInput');
       const text = input.value.trim();
       if (!text) return;
-      const it = items.find(x => x.id === commentTargetId);
+      const it = dlCommentTarget();
       if (!it) return;
       if (!it.comments) it.comments = [];
       it.comments.push({ id: 'c' + Date.now(), author: commentAuthor, text: text, ts: Date.now() });
+      if (typeof dlNextMts106 === 'function') { try { it.mts = dlNextMts106(); } catch (e2) {} }
       input.value = '';
       persistData();
       renderCommentList();
       renderItems();
+      if (commentTargetKind === 'bucket' && typeof renderBuckets === 'function') renderBuckets();
     }
     function deleteComment(cid) {
-      const it = items.find(x => x.id === commentTargetId);
+      const it = dlCommentTarget();
       if (!it || !it.comments) return;
       it.comments = it.comments.filter(c => c.id !== cid);
       persistData();
       renderCommentList();
       renderItems();
+      if (commentTargetKind === 'bucket' && typeof renderBuckets === 'function') renderBuckets();
     }
 
     // ---------- 기념일 & D-day ----------
@@ -3450,10 +3454,16 @@ Check your Browserslist config to be sure that your targets are set up correctly
         const ring = dlLastPick === b.id ? ' ring-2 ring-violet-400' : '';
         return '<div class="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex items-start gap-3' + ring + '">' +
           '<button onclick="toggleBucketDone(\'' + b.id + '\')" class="mt-0.5 w-6 h-6 flex-shrink-0 rounded-full border-2 flex items-center justify-center text-xs font-bold ' + checkCls + '">✓</button>' +
-          '<div class="flex-1 min-w-0 cursor-pointer" onclick="openBucketModal(\'' + b.id + '\')">' +
+          '<div class="flex-1 min-w-0">' +
+          '<div class="cursor-pointer" onclick="openBucketModal(\'' + b.id + '\')">' +
           '<p class="text-sm font-bold ' + (b.done ? 'text-gray-400' : 'text-gray-900') + '">' + escapeHtml(b.title) + '</p>' +
           '<p class="mt-1.5"><span class="inline-block px-1.5 py-0.5 rounded-md bg-violet-50 text-violet-500 text-[10px] font-bold">' + dlBucketKindEmoji(b) + ' ' + dlBucketKindLabel(b) + '</span></p>' +
           (b.memo ? '<p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">' + escapeHtml(b.memo) + '</p>' : '') + doneInfo +
+          '</div>' +
+          '<div class="flex items-center gap-1.5 mt-2">' +
+          '<button onclick="openBucketComments(\'' + b.id + '\')" title="댓글" class="px-2 py-1 rounded-xl bg-indigo-50/80 hover:bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center gap-1 active:scale-90 transition"><span>💬</span><span class="text-[11px] font-semibold">' + ((b.comments || []).length) + '</span></button>' +
+          '<button onclick="sendBucketCheer(event, \'' + b.id + '\')" title="응원 보내기" class="px-2 py-1 rounded-xl bg-pink-50/80 hover:bg-pink-100 text-pink-600 text-xs font-bold flex items-center gap-1 active:scale-90 transition"><span>💌</span><span class="text-[11px] font-semibold">' + (b.cheers || 0) + '</span></button>' +
+          '</div>' +
           '</div></div>';
       }).join('');
     }
@@ -3490,7 +3500,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
         if (b) { b.title = title; b.memo = memo; const kEl = document.getElementById('bucketKind'); if (kEl) b.kind = kEl.value; }
         showToast('버킷이 수정되었습니다!', '✏️');
       } else {
-        buckets.unshift({ id: 'bk-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), title: title, memo: memo, kind: (document.getElementById('bucketKind') || {}).value || 'do', done: false, createdAt: Date.now(), doneAt: null });
+        buckets.unshift({ id: 'bk-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), title: title, memo: memo, kind: (document.getElementById('bucketKind') || {}).value || 'do', done: false, createdAt: Date.now(), doneAt: null, cheers: 0, comments: [] });
         showToast('버킷이 추가되었습니다!', '✨');
       }
       persistData();
@@ -3528,6 +3538,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     }
     function normalizeBuckets() {
       let changed = false;
+      buckets.forEach(b => { if (typeof b.cheers !== 'number') { b.cheers = 0; changed = true; } if (!Array.isArray(b.comments)) { b.comments = []; changed = true; } });
       const moved = items.filter(it => it.categoryId === 'cat-bucket');
       if (moved.length) {
         const keys = new Set(buckets.map(b => b.title + '|' + (b.memo || '') + '|' + (b.done ? '1' : '0')));
@@ -4599,7 +4610,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
     const _origDeleteComment51 = deleteComment;
     deleteComment = function (cid) {
-      const it = items.find(x => x.id === commentTargetId);
+      const it = dlCommentTarget();
       const c = it && it.comments ? it.comments.find(x => x.id === cid) : null;
       if (c && c.author !== dlMySlot()) { showToast('남의 댓글은 지울 수 없어요', '🔒'); return; }
       return _origDeleteComment51.apply(this, arguments);
@@ -4675,11 +4686,11 @@ Check your Browserslist config to be sure that your targets are set up correctly
     /* ---- 활동 기록 래핑 ---- */
     const _origAddComment52 = handleAddComment;
     handleAddComment = function (e) {
-      const it0 = items.find(x => x.id === commentTargetId);
+      const it0 = dlCommentTarget();
       const before = it0 && it0.comments ? it0.comments.length : 0;
       const r = _origAddComment52.apply(this, arguments);
       try {
-        const it = items.find(x => x.id === commentTargetId);
+        const it = dlCommentTarget();
         if (it && it.comments && it.comments.length > before) {
           const c = it.comments[it.comments.length - 1];
           dlFeedPush('comment', "님이 '" + it.title + "'에 댓글을 남겼어요: " + c.text);
@@ -5333,7 +5344,7 @@ Check your Browserslist config to be sure that your targets are set up correctly
     };
   
     /* 69. 앱 버전 표시 — DL_VERSION 값은 빌드 마지막에 RELEASE 상수로 치환됨 */
-    window.DL_VERSION = { name: '2.9.76', code: 86 };
+    window.DL_VERSION = { name: '2.9.77', code: 87 };
     (function dlShowVersion() {
       const txt = 'DuoLog v' + window.DL_VERSION.name;
       const card = document.querySelector('#modalProfile > div');
@@ -6063,6 +6074,48 @@ Check your Browserslist config to be sure that your targets are set up correctly
       window._dlVis109 = true;
       document.addEventListener('visibilitychange', () => { if (document.hidden) { try { dlMaybeCheckpoint106(); } catch (e) {} } });
     }
+  
+    // ===== 113) 버킷 공감·댓글 (2.9.77) =====
+    let commentTargetKind = 'item';
+    function dlCommentTarget() {
+      if (commentTargetKind === 'bucket' && typeof buckets !== 'undefined') return buckets.find(x => x.id === commentTargetId) || null;
+      return (typeof items !== 'undefined' ? items.find(x => x.id === commentTargetId) : null) || null;
+    }
+    function openBucketComments(id) { openComments(id, 'bucket'); }
+    function sendBucketCheer(ev, id) {
+      const b = (typeof buckets !== 'undefined' ? buckets : []).find(x => x.id === id);
+      if (!b) return;
+      b.cheers = (b.cheers || 0) + 1;
+      if (typeof dlNextMts106 === 'function') { try { b.mts = dlNextMts106(); } catch (e) {} }
+      persistData();
+      try {
+        const bubble = document.createElement('div');
+        bubble.className = 'fixed pointer-events-none heart-bubble text-xl z-50 font-bold';
+        bubble.innerText = '💖 +1';
+        bubble.style.left = (((ev && ev.clientX) || 10) - 10) + 'px';
+        bubble.style.top = (((ev && ev.clientY) || 10) - 20) + 'px';
+        document.body.appendChild(bubble);
+        setTimeout(() => bubble.remove(), 800);
+      } catch (e) {}
+      renderBuckets();
+      try { if (typeof dlFeedPush === 'function') dlFeedPush('cheer', "님이 '" + b.title + "'에 응원을 보냈어요"); } catch (e) {}
+      showToast('버킷에 응원을 보냈어요! 💌', '✨');
+    }
+    // 낡은 스냅샷이 와도 로컬 버킷 공감 증가분 유지 (2.9.72 일정 공감 max 복원과 같은 패턴)
+    const _origApplyRemote113 = applyRemoteData;
+    applyRemoteData = async function (ts, data) {
+      const localBuckets = (typeof buckets !== 'undefined' && Array.isArray(buckets)) ? buckets.slice() : [];
+      const r = await _origApplyRemote113.apply(this, arguments);
+      try {
+        let fixed = false;
+        localBuckets.forEach(lb => {
+          const cur = buckets.find(b => b.id === lb.id);
+          if (cur && (lb.cheers || 0) > (cur.cheers || 0)) { cur.cheers = lb.cheers || 0; fixed = true; }
+        });
+        if (fixed) { persistData(); if (typeof renderBuckets === 'function') renderBuckets(); }
+      } catch (e) {}
+      return r;
+    };
   
     // ===== 106) 델타 동기화 A단계 (dual) =====
     let dlDeltaClients106 = [];
